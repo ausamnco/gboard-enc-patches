@@ -40,6 +40,7 @@ val backspaceRepeatHapticsPatch = bytecodePatch(
             )
         )
     )
+    dependsOn(backspaceRepeatHapticsSettingsPatch)
 
     execute {
         val targetMethod = RepeatKeyActionFingerprint.method
@@ -78,6 +79,81 @@ val backspaceRepeatHapticsPatch = bytecodePatch(
                 if-ne v1, v2, :cond_return
                 iget-object v0, p0, ${ownerClass.type}->$softKeyViewField:Lcom/google/android/libraries/inputmethod/widgets/SoftKeyView;
                 if-eqz v0, :cond_return
+
+                # --- 1. Preference toggle check ---
+                :try_start_pref
+                invoke-virtual {v0}, Landroid/view/View;->getContext()Landroid/content/Context;
+                move-result-object v1
+                if-eqz v1, :cond_check_delete
+                invoke-static {v1}, Landroid/preference/PreferenceManager;->getDefaultSharedPreferences(Landroid/content/Context;)Landroid/content/SharedPreferences;
+                move-result-object v2
+                if-eqz v2, :cond_check_delete
+                const-string v3, "pref_key_backspace_repeat_haptic"
+                const/4 v4, 0x1
+                invoke-interface {v2, v3, v4}, Landroid/content/SharedPreferences;->getBoolean(Ljava/lang/String;Z)Z
+                move-result v2
+                if-nez v2, :cond_check_delete
+                return-void
+                :try_end_pref
+                .catch Ljava/lang/Throwable; {:try_start_pref .. :try_end_pref} :catch_pref
+                :catch_pref
+
+                # --- 2. Check if characters or selection are being deleted ---
+                :cond_check_delete
+                :try_start_ic
+                invoke-virtual {v0}, Landroid/view/View;->getContext()Landroid/content/Context;
+                move-result-object v1
+
+                :loop_context
+                if-eqz v1, :cond_do_haptic
+                instance-of v2, v1, Landroid/inputmethodservice/InputMethodService;
+                if-eqz v2, :cond_unwrap_context
+                check-cast v1, Landroid/inputmethodservice/InputMethodService;
+                invoke-virtual {v1}, Landroid/inputmethodservice/InputMethodService;->getCurrentInputConnection()Landroid/view/inputmethod/InputConnection;
+                move-result-object v1
+                if-eqz v1, :cond_do_haptic
+
+                const/4 v2, 0x1
+                const/4 v3, 0x0
+                invoke-interface {v1, v2, v3}, Landroid/view/inputmethod/InputConnection;->getTextBeforeCursor(II)Ljava/lang/CharSequence;
+                move-result-object v2
+                if-eqz v2, :cond_check_sel
+                invoke-interface {v2}, Ljava/lang/CharSequence;->length()I
+                move-result v2
+                if-lez v2, :cond_check_sel
+                goto :cond_do_haptic
+
+                :cond_check_sel
+                const/4 v2, 0x0
+                invoke-interface {v1, v2}, Landroid/view/inputmethod/InputConnection;->getSelectedText(I)Ljava/lang/CharSequence;
+                move-result-object v1
+                if-eqz v1, :cond_no_text
+                invoke-interface {v1}, Ljava/lang/CharSequence;->length()I
+                move-result v1
+                if-lez v1, :cond_no_text
+                goto :cond_do_haptic
+
+                :cond_no_text
+                # No text before cursor and no text selected -> suppress vibration
+                return-void
+
+                :cond_unwrap_context
+                instance-of v2, v1, Landroid/content/ContextWrapper;
+                if-eqz v2, :cond_do_haptic
+                check-cast v1, Landroid/content/ContextWrapper;
+                invoke-virtual {v1}, Landroid/content/ContextWrapper;->getBaseContext()Landroid/content/Context;
+                move-result-object v2
+                if-eqz v2, :cond_do_haptic
+                if-eq v2, v1, :cond_do_haptic
+                move-object v1, v2
+                goto :loop_context
+
+                :try_end_ic
+                .catch Ljava/lang/Throwable; {:try_start_ic .. :try_end_ic} :catch_ic
+                :catch_ic
+
+                # --- 3. Trigger haptic pulse ---
+                :cond_do_haptic
                 :try_start_0
                 $hapticCallSmali
                 :try_end_0
@@ -99,7 +175,7 @@ val backspaceRepeatHapticsPatch = bytecodePatch(
                     AccessFlags.PRIVATE.value or AccessFlags.FINAL.value,
                     null,
                     null,
-                    MutableMethodImplementation(5)
+                    MutableMethodImplementation(8)
                 ).toMutable().apply {
                     addInstructions(0, helperBody)
                 }

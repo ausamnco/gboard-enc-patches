@@ -71,6 +71,7 @@ echo "Compiling Kotlin sources..."
     -Xcontext-receivers \
     "${SCRIPT_DIR}/src/main/kotlin/dev/custom/gboardpatches/patches/haptics/RepeatKeyActionFingerprint.kt" \
     "${SCRIPT_DIR}/src/main/kotlin/dev/custom/gboardpatches/patches/haptics/PressEffectPlayerFinder.kt" \
+    "${SCRIPT_DIR}/src/main/kotlin/dev/custom/gboardpatches/patches/haptics/BackspaceRepeatHapticsSettingsPatch.kt" \
     "${SCRIPT_DIR}/src/main/kotlin/dev/custom/gboardpatches/patches/haptics/BackspaceRepeatHapticsPatch.kt"
 
 # 6. Create Manifest
