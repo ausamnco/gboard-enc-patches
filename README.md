@@ -1,7 +1,7 @@
 # Gboard Continuous Backspace Repeat Haptic Feedback Patch
 
 <p align="center">
-  <a href="https://morphe.software/add-source?github=USERNAME/gboard-backspace-haptics"><img alt="Add to Morphe" src="https://img.shields.io/badge/Morphe-Add%20Source-00A8FF?style=for-the-badge"></a>
+  <a href="https://morphe.software/add-source?github=ausamnco/gboard-enc-patches"><img alt="Add to Morphe" src="https://img.shields.io/badge/Morphe-Add%20Source-00A8FF?style=for-the-badge"></a>
   <img alt="Gboard" src="https://img.shields.io/badge/Target-Gboard-4285F4?style=for-the-badge">
   <img alt="License" src="https://img.shields.io/badge/License-GPLv3-green?style=for-the-badge">
 </p>
@@ -12,14 +12,14 @@ A standalone, Morphe/ReVanced-compatible bytecode patch repository for **Gboard*
 
 ## 📱 Quick Setup: Use in Morphe App
 
-Once this repository is published on GitHub and released, you can install it directly from your Android phone using the **Morphe** app:
+Once this repository is released, you can install it directly from your Android phone using the **Morphe** app:
 
 1. **Add Repository Source**:
    - Open **Morphe** on your phone.
    - Go to **Settings** ⚙️ -> **Sources**.
-   - Tap **Add Source** and enter your repository URL:
+   - Tap **Add Source** and enter:
      ```
-     https://github.com/<YOUR_GITHUB_USERNAME>/<YOUR_REPO_NAME>
+     https://github.com/ausamnco/gboard-enc-patches
      ```
    - Alternatively, tap the **Add to Morphe** button above from your Android browser.
 
@@ -41,30 +41,14 @@ Once this repository is published on GitHub and released, you can install it dir
 
 ## 🚀 Publishing This Repository to GitHub
 
-Follow these simple steps to push this repository to your GitHub account and generate your first Morphe release:
-
-### 1. Create a New Repository on GitHub
-- Go to [github.com/new](https://github.com/new).
-- Name your repository (e.g., `gboard-backspace-haptics` or `gboard-haptics-patch`).
-- Set it to **Public** (required so the Morphe app can fetch releases without authentication).
-- Do **not** initialize with a README, .gitignore, or license (they are already included here).
-
-### 2. Push Your Local Code
-In this directory, run:
 ```bash
-# Initialize git and stage all files
-git init -b main
-git add .
-git commit -m "feat: initial release of continuous backspace repeat haptics patch"
-
-# Link your GitHub repository
-git remote add origin https://github.com/<YOUR_GITHUB_USERNAME>/<YOUR_REPO_NAME>.git
+# Link repository remote
+git remote add origin https://github.com/ausamnco/gboard-enc-patches.git
 
 # Push the main branch
 git push -u origin main
 
-# Tag and push version 1.0.0 (this automatically triggers the GitHub Actions release workflow!)
-git tag v1.0.0
+# Push the v1.0.0 release tag (this triggers the automated GitHub Actions release workflow!)
 git push origin v1.0.0
 ```
 
