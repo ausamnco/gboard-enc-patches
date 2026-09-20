@@ -13,6 +13,6 @@ dist/
 .vscode/
 
 # Local cache and libraries
-libs/morphe-cli.jar
+libs/*.jar
 local.properties
 *.log

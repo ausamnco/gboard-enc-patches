@@ -75,22 +75,62 @@ echo "Compiling Kotlin sources..."
 
 # 6. Create Manifest
 MANIFEST_FILE="${BUILD_DIR}/MANIFEST.MF"
+TIMESTAMP="$(date +%s000)"
 cat << EOF > "${MANIFEST_FILE}"
 Manifest-Version: 1.0
+Name: Gboard Backspace Haptics
+Description: Continuous tactile haptic feedback during Gboard backspace repeat deletion.
 Version: ${VERSION}
-Created-By: Morphe Patch Builder
+Timestamp: ${TIMESTAMP}
+Source: https://github.com/ausamnco/gboard-enc-patches
+Author: ausamnco
+Contact: https://github.com/ausamnco/gboard-enc-patches/issues
+Website: https://github.com/ausamnco/gboard-enc-patches
+License: GPLv3
+Patcher-Version: 1.8.0
 EOF
 
-# 7. Package .mpp and .jar
+# 7. Package temporary jar for D8 dexing
 JAR_BIN="${JAVA//java/jar}"
+R8_JAR="${LIBS_DIR}/r8.jar"
+if [ ! -f "${R8_JAR}" ]; then
+    echo "Downloading D8 compiler (r8)..."
+    curl -fSL -o "${R8_JAR}" "https://dl.google.com/dl/android/maven2/com/android/tools/r8/8.2.42/r8-8.2.42.jar"
+fi
+
+TEMP_CLASSES_JAR="${BUILD_DIR}/classes-temp.jar"
+"${JAR_BIN}" -cfm "${TEMP_CLASSES_JAR}" "${MANIFEST_FILE}" -C "${BUILD_DIR}" dev
+
+# 8. Run D8 to generate classes.dex for Android ART/Dalvik runtime
+echo "Compiling Dalvik executable (classes.dex) with D8..."
+DEX_DIR="${BUILD_DIR}/dex_output"
+rm -rf "${DEX_DIR}"
+mkdir -p "${DEX_DIR}"
+
+"${JAVA}" -cp "${R8_JAR}" com.android.tools.r8.D8 \
+    --release \
+    --min-api 26 \
+    --output "${DEX_DIR}" \
+    "${TEMP_CLASSES_JAR}" \
+    --classpath "${MORPHE_JAR}"
+
+cp "${DEX_DIR}/classes.dex" "${BUILD_DIR}/classes.dex"
+rm -f "${TEMP_CLASSES_JAR}"
+rm -rf "${DEX_DIR}"
+
+# 9. Package final .mpp and .jar
 MPP_OUTPUT="${DIST_DIR}/patches-${VERSION}.mpp"
 JAR_OUTPUT="${DIST_DIR}/gboard-backspace-haptics.jar"
 
-echo "Packaging ${MPP_OUTPUT}..."
-"${JAR_BIN}" -cfm "${MPP_OUTPUT}" "${MANIFEST_FILE}" -C "${BUILD_DIR}" .
+echo "Packaging final patch bundle ${MPP_OUTPUT}..."
+rm -f "${MPP_OUTPUT}" "${JAR_OUTPUT}"
+"${JAR_BIN}" -cfm "${MPP_OUTPUT}" "${MANIFEST_FILE}" -C "${BUILD_DIR}" dev -C "${BUILD_DIR}" classes.dex
+if [ -d "${BUILD_DIR}/META-INF" ]; then
+    "${JAR_BIN}" -uf "${MPP_OUTPUT}" -C "${BUILD_DIR}" META-INF
+fi
 cp "${MPP_OUTPUT}" "${JAR_OUTPUT}"
 
-# 8. Verify using Morphe
+# 10. Verify using Morphe CLI
 echo "Validating patch package with Morphe CLI..."
 "${JAVA}" -jar "${MORPHE_JAR}" list-patches --patches="${MPP_OUTPUT}"
 
