@@ -1,4 +1,4 @@
-# Gboard Continuous Backspace Repeat Haptic Feedback Patch
+# Gboard Enhancement Patches Suite
 
 <p align="center">
   <a href="https://morphe.software/add-source?github=ausamnco/gboard-enc-patches"><img alt="Add to Morphe" src="https://img.shields.io/badge/Morphe-Add%20Source-00A8FF?style=for-the-badge"></a>
@@ -6,13 +6,16 @@
   <img alt="License" src="https://img.shields.io/badge/License-GPLv3-green?style=for-the-badge">
 </p>
 
-A standalone, Morphe/ReVanced-compatible bytecode patch repository for **Gboard** (`com.google.android.inputmethod.latin`). It introduces continuous tactile feedback pulses when the backspace key is held down during repeated character deletion.
+A standalone, Morphe/ReVanced-compatible bytecode and resource patch suite for **Gboard** (`com.google.android.inputmethod.latin`).
+
+This repository provides two independent patches that can be selected individually or together in the **Morphe** app alongside other third-party patch sources:
+
+1. **Backspace Repeat Haptic Feedback**: Introduces continuous tactile feedback pulses when the backspace key is held down during repeated character deletion (with empty text suppression and a dedicated settings toggle).
+2. **Enter Key Tasker Event**: Broadcasts a high-priority Android Intent event to **Tasker** whenever the Enter key or bottom-right IME Action key is pressed, including active app package name, action type, raw keycode, and preceding text.
 
 ---
 
 ## 📱 Quick Setup: Use in Morphe App
-
-Once this repository is released, you can install it directly from your Android phone using the **Morphe** app:
 
 1. **Add Repository Source**:
    - Open **Morphe** on your phone.
@@ -25,96 +28,67 @@ Once this repository is released, you can install it directly from your Android 
 
 2. **Patch Gboard**:
    - In Morphe, navigate to the **Patcher** tab.
-   - Select **Gboard** (from your installed apps or a downloaded APK file).
-   - In the patch selection list, you will see **Backspace Repeat Haptic Feedback** alongside any patches from other enabled sources (such as `jasonwu1994/Gboard-patches`).
-   - Select the patches you want and tap **Patch**!
+   - Select **Gboard** (`18.0.3.954559732-release-arm64-v8a` or compatible).
+   - In the patch selection list, you will see both patches:
+     - ☑️ **Backspace Repeat Haptic Feedback**
+     - ☑️ **Enter Key Tasker Event**
+   - Select the patches you desire and tap **Patch**!
    - Install the generated APK.
 
-3. **Enable Haptic Feedback in Gboard**:
-   - Ensure Android's system haptics toggle is enabled (*Settings -> Sound & vibration -> Haptics*).
-   - Open Gboard Settings -> **Preferences**.
-   - Ensure **Haptic feedback on keypress** is turned ON.
-   - Adjust **Vibration strength on keypress** to your preference (e.g. 5–15 ms).
-   - When holding backspace, feel a crisp tactile pulse for every single character deleted!
+---
+
+## ⚡ Patch 1: Backspace Repeat Haptic Feedback
+
+- **How it works:** Hooks into Gboard's repeat key dispatch pipeline. While backspace is held down, every deletion step fires a tactile pulse via Gboard's native haptic player.
+- **Smart suppression:** If the cursor is at the beginning of a line/field and no text is deleted, vibration is automatically suppressed.
+- **Gboard Settings:** Adds a toggle under *Settings -> Preferences -> Key tap* (*"Backspace repeat haptic feedback"*).
 
 ---
 
-## 🚀 Publishing This Repository to GitHub
+## ⚡ Patch 2: Enter Key Tasker Event
 
-```bash
-# Link repository remote
-git remote add origin https://github.com/ausamnco/gboard-enc-patches.git
+- **How it works:** Hooks into Gboard's central input dispatch pipeline (`GoogleInputMethodService.dD`). Whenever the bottom-right key is pressed—whether for a standard newline (keycode 66/160) or an IME action (Send, Search, Go, Done, Next)—an Intent broadcast is immediately dispatched with zero latency.
+- **Gboard Settings:** Adds a toggle under *Settings -> Preferences -> Key tap* (*"Send Enter key to Tasker"*).
 
-# Push the main branch
-git push -u origin main
+### Tasker Setup Guide
 
-# Push the v1.0.0 release tag (this triggers the automated GitHub Actions release workflow!)
-git push origin v1.0.0
-```
+1. Open **Tasker** -> go to the **Profiles** tab.
+2. Tap **+** -> select **Event** -> **System** -> **Intent Received**.
+3. In the **Action** field, enter:
+   ```
+   dev.custom.gboard.ENTER_PRESSED
+   ```
+4. Leave Cat, Scheme, Mime, and Path blank. Tap the back button to save the event.
+5. Link a new Task. Inside the Task, you can use the following local variables:
 
-### 3. Automated Release Creation
-- The included [GitHub Actions workflow](.github/workflows/release.yml) will trigger automatically upon pushing the `v1.0.0` tag.
-- It will compile the Kotlin bytecode, package `patches-1.0.0.mpp`, generate the metadata manifests, and publish a GitHub Release with the patch bundle attached.
-- As soon as the release completes (usually ~1–2 minutes), your Morphe app will be able to discover and install it!
+| Tasker Variable | Description | Example Values |
+| :--- | :--- | :--- |
+| `%package` | Package name of the active foreground app | `com.whatsapp`, `com.google.android.apps.messaging` |
+| `%action_type` | Action triggered | `ENTER`, `SEND`, `SEARCH`, `GO`, `DONE`, `NEXT` |
+| `%key_code` | Raw keycode integer | `66` (Enter), `160` (Numpad Enter), `-10018` (Action) |
+| `%text_before` | Text before the cursor (up to 100 chars) | `"Order #12345"` |
+| `%timestamp` | Epoch time in milliseconds | `1726831000000` |
+
+#### Example Tasker Actions:
+- Flash a notification: `Enter pressed in %package: %action_type`
+- Conditional action: Only run when pressed in WhatsApp:
+  ```
+  If %package ~ com.whatsapp
+  ```
 
 ---
 
-## 🛠️ Local Development & Manual Build
-
-If you want to build or test the patch package locally on your computer:
+## 🛠️ Building Locally
 
 ```bash
-# Run the self-contained build script
-chmod +x build.sh
+# Clone the repository
+git clone https://github.com/ausamnco/gboard-enc-patches.git
+cd gboard-enc-patches
+
+# Compile patches and generate release bundle (.mpp)
 ./build.sh
 ```
 
-Outputs produced:
-- `dist/patches-1.0.0.mpp`: Standard Morphe release asset.
-- `dist/gboard-backspace-haptics.jar`: Local convenience JAR.
-
-To test applying the patch to a local Gboard APK via CLI:
-```bash
-java -jar libs/morphe-cli.jar patch \
-    -p dist/patches-1.0.0.mpp \
-    -o gboard-patched.apk \
-    -f "path/to/gboard.apk"
-```
-
----
-
-## 🔍 How the Patch Works
-
-### 1. The Problem in Stock Gboard
-Stock Gboard only performs haptic feedback when a key is initially pressed (`ACTION_DOWN`). When a key auto-repeats (such as holding down backspace to delete multiple characters), Gboard's timer runnable invokes repeat event dispatches, but skips tactile feedback.
-
-### 2. Bytecode Hook Point
-This patch uses Morphe to inject a hook into Gboard's `PointerTracker.q` repeat dispatch method (`Lpvi;->q`):
-```java
-// Method signature:
-// q(ActionDef actionDef, SoftKeyDef softKeyDef, long eventTime, boolean isRepeat, long uptime, int count)
-
-// Injected at opcode index 0:
-this.morpheBackspaceRepeatHaptic(actionDef);
-```
-
-### 3. Injected Helper Method
-The injected helper method:
-1. Validates that `actionDef` and its `KeyData` (`actionDef.b()`) are non-null.
-2. Checks that the keycode is `KeyEvent.KEYCODE_DEL` (`67` / `0x43`).
-3. Resolves the active `SoftKeyView` (`this.m`).
-4. Invokes Gboard's native `PressEffectPlayer` module:
-   ```java
-   phk.a().d(softKeyView, 0); // PerformBasicTapEffect
-   ```
-   This automatically respects system vibration toggles, Gboard's user preference, and the custom vibration duration slider!
-5. Catches any runtime exceptions and safely falls back to Android's `view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)`.
-
-### 4. Obfuscation Resilience & Compatibility
-- Obfuscated class names (`phk`, `phm`) and field names (`m`) are **dynamically resolved** by analyzing method instruction flows at patch time, rather than hardcoded.
-- Compatible with all existing patch suites (e.g. `jasonwu1994/Gboard-patches`), as this patch operates on `PointerTracker.q`, whereas other suites target pointer ownership methods (`B`, `pointerCancel`, `pointerReset`).
-
----
-
-## 📄 License
-Released under the [GNU General Public License v3.0](LICENSE).
+Compiled outputs will be located in `dist/`:
+- `dist/patches-1.2.0.mpp`: Release bundle for Morphe Manager.
+- `dist/gboard-backspace-haptics.jar`: Standard JAR format.

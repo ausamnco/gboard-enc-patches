@@ -64,23 +64,21 @@ mkdir -p "${DIST_DIR}"
 
 # 5. Compile Kotlin sources
 echo "Compiling Kotlin sources..."
+mapfile -t KT_SOURCES < <(find "${SCRIPT_DIR}/src/main/kotlin" -name "*.kt" | sort)
 "${JAVA}" -jar "${KOTLINC_JAR}" \
     -cp "${MORPHE_JAR}" \
     -d "${BUILD_DIR}" \
     -Xskip-metadata-version-check \
     -Xcontext-receivers \
-    "${SCRIPT_DIR}/src/main/kotlin/dev/custom/gboardpatches/patches/haptics/RepeatKeyActionFingerprint.kt" \
-    "${SCRIPT_DIR}/src/main/kotlin/dev/custom/gboardpatches/patches/haptics/PressEffectPlayerFinder.kt" \
-    "${SCRIPT_DIR}/src/main/kotlin/dev/custom/gboardpatches/patches/haptics/BackspaceRepeatHapticsSettingsPatch.kt" \
-    "${SCRIPT_DIR}/src/main/kotlin/dev/custom/gboardpatches/patches/haptics/BackspaceRepeatHapticsPatch.kt"
+    "${KT_SOURCES[@]}"
 
 # 6. Create Manifest
 MANIFEST_FILE="${BUILD_DIR}/MANIFEST.MF"
 TIMESTAMP="$(date +%s000)"
 cat << EOF > "${MANIFEST_FILE}"
 Manifest-Version: 1.0
-Name: Gboard Backspace Haptics
-Description: Continuous tactile haptic feedback during Gboard backspace repeat deletion.
+Name: Gboard Custom Patches
+Description: Custom enhancement patches for Gboard (Backspace Continuous Haptics & Enter Key Tasker Event).
 Version: ${VERSION}
 Timestamp: ${TIMESTAMP}
 Source: https://github.com/ausamnco/gboard-enc-patches

@@ -54,12 +54,12 @@ jobs:
       - name: Prepare Release Notes
         run: |
           cat << 'EOF' > release-notes.md
-          ### Gboard Continuous Backspace Repeat Haptics Patch
+          ### Gboard Enhancement Patches Suite
 
           #### ✨ Features
-          - **Continuous Backspace Repeat Haptic Feedback**: Delivers continuous, crisp tactile pulses on each repeated character deletion when holding down the backspace key.
-          - **Full Preferences Compliance**: Honors system vibration setting, Gboard "Haptic feedback on keypress" toggle, and vibration strength/duration slider.
-          - **Compatible**: Works seamlessly standalone or combined with other Morphe patch suites (like `jasonwu1994/Gboard-patches`).
+          - **Backspace Repeat Haptic Feedback**: Delivers continuous tactile pulses on each repeated character deletion when holding down the backspace key (with empty text suppression and settings toggle).
+          - **Enter Key Tasker Event**: Dispatches a high-priority Android Intent broadcast (`dev.custom.gboard.ENTER_PRESSED`) to Tasker whenever the Enter or IME action key is pressed, including active package, action type, and cursor text.
+          - **Morphe Independent Selection**: Both patches can be individually enabled or combined together in Morphe Manager.
 
           #### 📱 Add to Morphe App
           1. Open the **Morphe** app on your Android device.
@@ -68,7 +68,7 @@ jobs:
              ```
              https://github.com/${{ github.repository }}
              ```
-          4. Return to **Patcher**, select your Gboard APK, enable **Backspace Repeat Haptic Feedback**, and patch!
+          4. Return to **Patcher**, select Gboard, select your patches, and patch!
           EOF
 
       - name: Publish GitHub Release
