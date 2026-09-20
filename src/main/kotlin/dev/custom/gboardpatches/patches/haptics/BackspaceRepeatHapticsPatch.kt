@@ -34,6 +34,7 @@ val backspaceRepeatHapticsPatch = bytecodePatch(
             name = "Gboard",
             packageName = "com.google.android.inputmethod.latin",
             targets = listOf(
+                AppTarget(version = "18.0.3.954559732-release-arm64-v8a"),
                 AppTarget(version = "18.0.3"),
                 AppTarget(version = null, isExperimental = true)
             )

@@ -13,6 +13,6 @@ dist/
 .vscode/
 
 # Local cache and libraries
-libs/*.jar
+libs/
 local.properties
 *.log

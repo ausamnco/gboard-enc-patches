@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.0.1",
   "patches": [
     {
       "name": "Backspace Repeat Haptic Feedback",
@@ -8,8 +8,8 @@
       "dependencies": [],
       "compatiblePackages": {
         "com.google.android.inputmethod.latin": [
-          "18.0.3",
-          "18.0.3.954559732-release-arm64-v8a"
+          "18.0.3.954559732-release-arm64-v8a",
+          "18.0.3"
         ]
       },
       "options": []

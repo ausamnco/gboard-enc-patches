@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-09-20T11:45:00",
-  "description": "Continuous tactile haptic feedback during Gboard backspace repeat deletion.",
-  "download_url": "https://github.com/ausamnco/gboard-enc-patches/releases/download/v1.0.0/patches-1.0.0.mpp",
+  "created_at": "2026-09-20T12:25:00",
+  "description": "Continuous tactile haptic feedback during Gboard backspace repeat deletion (updated target compatibility for 18.0.3.954559732-release-arm64-v8a).",
+  "download_url": "https://github.com/ausamnco/gboard-enc-patches/releases/download/v1.0.1/patches-1.0.1.mpp",
   "signature_download_url": "",
-  "version": "1.0.0"
+  "version": "1.0.1"
 }
