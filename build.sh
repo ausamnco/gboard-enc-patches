@@ -26,10 +26,10 @@ fi
 echo "Using Java: $(${JAVA} -version 2>&1 | head -n 1)"
 
 # 3. Resolve Kotlin compiler
-if [ -f "/home/ausamnco/.local/kotlinc/lib/kotlin-compiler.jar" ]; then
-    KOTLINC_JAR="/home/ausamnco/.local/kotlinc/lib/kotlin-compiler.jar"
-elif [ -f "${HOME}/.local/kotlinc/lib/kotlin-compiler.jar" ]; then
+if [ -f "${HOME}/.local/kotlinc/lib/kotlin-compiler.jar" ]; then
     KOTLINC_JAR="${HOME}/.local/kotlinc/lib/kotlin-compiler.jar"
+elif [ -f "/home/ausamnco/.local/kotlinc/lib/kotlin-compiler.jar" ]; then
+    KOTLINC_JAR="/home/ausamnco/.local/kotlinc/lib/kotlin-compiler.jar"
 elif [ -f "${LIBS_DIR}/kotlin-compiler.jar" ]; then
     KOTLINC_JAR="${LIBS_DIR}/kotlin-compiler.jar"
 elif command -v kotlinc >/dev/null 2>&1; then
@@ -51,9 +51,8 @@ if [ ! -f "${MORPHE_JAR}" ]; then
     elif [ -f "${HOME}/.local/morphe/morphe-cli.jar" ]; then
         cp "${HOME}/.local/morphe/morphe-cli.jar" "${MORPHE_JAR}"
     else
-        echo "Downloading morphe-cli.jar..."
-        curl -fSL -o "${MORPHE_JAR}" "https://github.com/MorpheApp/morphe-cli/releases/download/v1.16.0/morphe-cli.jar" || \
-        curl -fSL -o "${MORPHE_JAR}" "https://github.com/MorpheApp/morphe-cli/releases/latest/download/morphe-cli.jar"
+        echo "Downloading morphe-desktop jar..."
+        curl -fSL -o "${MORPHE_JAR}" "https://github.com/MorpheApp/morphe-desktop/releases/download/v1.16.0/morphe-desktop-1.16.0-all.jar"
     fi
 fi
 echo "Using Morphe Framework: ${MORPHE_JAR}"
