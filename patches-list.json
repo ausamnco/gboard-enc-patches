@@ -1,5 +1,5 @@
 {
-  "version": "1.2.1",
+  "version": "1.3.0",
   "patches": [
     {
       "name": "Backspace Repeat Haptic Feedback",
@@ -17,6 +17,19 @@
     {
       "name": "Enter Key Tasker Event",
       "description": "Broadcasts an Intent event to Tasker whenever the Enter or IME action key is pressed on Gboard (with target package, action type, and cursor text).",
+      "use": true,
+      "dependencies": [],
+      "compatiblePackages": {
+        "com.google.android.inputmethod.latin": [
+          "18.0.3.954559732-release-arm64-v8a",
+          "18.0.3"
+        ]
+      },
+      "options": []
+    },
+    {
+      "name": "Glide Trail Customization",
+      "description": "Allows customizing glide typing trail color (including dynamic Rainbow RGB), fade speed, thickness, and length.",
       "use": true,
       "dependencies": [],
       "compatiblePackages": {

@@ -8,10 +8,11 @@
 
 A standalone, Morphe/ReVanced-compatible bytecode and resource patch suite for **Gboard** (`com.google.android.inputmethod.latin`).
 
-This repository provides two independent patches that can be selected individually or together in the **Morphe** app alongside other third-party patch sources:
+This repository provides three independent patches that can be selected individually or together in the **Morphe** app alongside other third-party patch sources:
 
 1. **Backspace Repeat Haptic Feedback**: Introduces continuous tactile feedback pulses when the backspace key is held down during repeated character deletion (with empty text suppression and a dedicated settings toggle).
 2. **Enter Key Tasker Event**: Broadcasts a high-priority Android Intent event to **Tasker** whenever the Enter key or bottom-right IME Action key is pressed, including active app package name, action type, raw keycode, and preceding text.
+3. **Glide Trail Customization**: Samsung Keyboard / Good Lock (Keys Cafe) style glide typing trail customization. Allows customizing trail speed (fade duration), dynamic Rainbow RGB spectrum, solid color presets, thickness, and length decay.
 
 ---
 
@@ -29,9 +30,10 @@ This repository provides two independent patches that can be selected individual
 2. **Patch Gboard**:
    - In Morphe, navigate to the **Patcher** tab.
    - Select **Gboard** (`18.0.3.954559732-release-arm64-v8a` or compatible).
-   - In the patch selection list, you will see both patches:
+   - In the patch selection list, you will see all available patches:
      - ☑️ **Backspace Repeat Haptic Feedback**
      - ☑️ **Enter Key Tasker Event**
+     - ☑️ **Glide Trail Customization**
    - Select the patches you desire and tap **Patch**!
    - Install the generated APK.
 
@@ -78,6 +80,29 @@ This repository provides two independent patches that can be selected individual
 
 ---
 
+## ⚡ Patch 3: Glide Trail Customization
+
+Customizes Gboard's glide typing gesture trail with full visual control inspired by Samsung Keyboard's Keys Cafe:
+
+- **How it works:** Hooks Gboard's `GestureOverlayView` and trail point fade processor (`mvs.g`). Replaces the hardcoded 1000ms fade timer with a dynamically configurable decay clock and adjusts stroke width, point retention buffer, alpha decay rate, and paint color filter in real time.
+- **Dynamic Rainbow RGB Mode:** Continuously cycles through the HSV color spectrum based on system uptime, giving the trail a vivid moving RGB wave effect while gliding.
+- **Color Presets:** Vibrant Cyan / Neon Blue, Vivid Purple, Hot Pink / Magenta, Crimson Red, Neon Orange, Emerald Green, and Pure White.
+- **Speed (Fade Duration):**
+  - *Fast Fade (500ms)*: Snappy, transient trail.
+  - *Slow Fade (2000ms)*: Extended persistence.
+  - *Ultra Slow (4000ms)*: Lingering artistic trail.
+- **Width (Thickness):**
+  - *Thin (6dp)*: Delicate, pencil-like gesture line.
+  - *Thick (22dp)*: Bold, prominent stroke.
+  - *Extra Thick (32dp)*: High-impact neon brush style.
+- **Length (Tail Decay):**
+  - *Short*: Tight tail following immediately behind the finger.
+  - *Long*: Extended tail showing recent gesture trajectory.
+  - *Infinite*: Retains the complete trail until gesture lift.
+- **Gboard Settings:** Adds a dedicated *"Customize glide trail"* category directly under *Settings -> Glide typing*.
+
+---
+
 ## 🛠️ Building Locally
 
 ```bash
@@ -90,5 +115,6 @@ cd gboard-enc-patches
 ```
 
 Compiled outputs will be located in `dist/`:
-- `dist/patches-1.2.0.mpp`: Release bundle for Morphe Manager.
+- `dist/patches-1.3.0.mpp`: Release bundle for Morphe Manager.
 - `dist/gboard-backspace-haptics.jar`: Standard JAR format.
+

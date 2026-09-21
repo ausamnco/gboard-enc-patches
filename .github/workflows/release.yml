@@ -59,7 +59,8 @@ jobs:
           #### ✨ Features
           - **Backspace Repeat Haptic Feedback**: Delivers continuous tactile pulses on each repeated character deletion when holding down the backspace key (with empty text suppression and settings toggle).
           - **Enter Key Tasker Event**: Dispatches a high-priority Android Intent broadcast (`dev.custom.gboard.ENTER_PRESSED`) to Tasker whenever the Enter or IME action key is pressed, including active package, action type, and cursor text.
-          - **Morphe Independent Selection**: Both patches can be individually enabled or combined together in Morphe Manager.
+          - **Glide Trail Customization**: Samsung Keyboard / Good Lock (Keys Cafe) style glide typing trail customization (fade speed, dynamic Rainbow RGB, color presets, stroke thickness, and tail length decay).
+          - **Morphe Independent Selection**: All patches can be individually enabled or combined together in Morphe Manager.
 
           #### 📱 Add to Morphe App
           1. Open the **Morphe** app on your Android device.
