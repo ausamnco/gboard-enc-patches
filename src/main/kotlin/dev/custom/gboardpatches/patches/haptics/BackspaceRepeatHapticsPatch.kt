@@ -85,11 +85,39 @@ val backspaceRepeatHapticsPatch = bytecodePatch(
                 invoke-virtual {v0}, Landroid/view/View;->getContext()Landroid/content/Context;
                 move-result-object v1
                 if-eqz v1, :cond_check_delete
+
+                const-string v3, "pref_key_backspace_repeat_haptic"
+                const/4 v4, 0x1
+
+                # 1a. Check DE (Device Protected Storage) context first (Gboard's primary preference storage)
+                invoke-virtual {v1}, Landroid/content/Context;->isDeviceProtectedStorage()Z
+                move-result v2
+                if-eqz v2, :cond_get_de_ctx
+                move-object v2, v1
+                goto :cond_read_de
+
+                :cond_get_de_ctx
+                invoke-virtual {v1}, Landroid/content/Context;->createDeviceProtectedStorageContext()Landroid/content/Context;
+                move-result-object v2
+
+                :cond_read_de
+                if-eqz v2, :cond_try_ce
+                invoke-static {v2}, Landroid/preference/PreferenceManager;->getDefaultSharedPreferences(Landroid/content/Context;)Landroid/content/SharedPreferences;
+                move-result-object v2
+                if-eqz v2, :cond_try_ce
+                invoke-interface {v2, v3}, Landroid/content/SharedPreferences;->contains(Ljava/lang/String;)Z
+                move-result v5
+                if-eqz v5, :cond_try_ce
+                invoke-interface {v2, v3, v4}, Landroid/content/SharedPreferences;->getBoolean(Ljava/lang/String;Z)Z
+                move-result v2
+                if-nez v2, :cond_check_delete
+                return-void
+
+                # 1b. Fallback to default / CE storage
+                :cond_try_ce
                 invoke-static {v1}, Landroid/preference/PreferenceManager;->getDefaultSharedPreferences(Landroid/content/Context;)Landroid/content/SharedPreferences;
                 move-result-object v2
                 if-eqz v2, :cond_check_delete
-                const-string v3, "pref_key_backspace_repeat_haptic"
-                const/4 v4, 0x1
                 invoke-interface {v2, v3, v4}, Landroid/content/SharedPreferences;->getBoolean(Ljava/lang/String;Z)Z
                 move-result v2
                 if-nez v2, :cond_check_delete
@@ -175,7 +203,7 @@ val backspaceRepeatHapticsPatch = bytecodePatch(
                     AccessFlags.PRIVATE.value or AccessFlags.FINAL.value,
                     null,
                     null,
-                    MutableMethodImplementation(8)
+                    MutableMethodImplementation(12)
                 ).toMutable().apply {
                     addInstructions(0, helperBody)
                 }
