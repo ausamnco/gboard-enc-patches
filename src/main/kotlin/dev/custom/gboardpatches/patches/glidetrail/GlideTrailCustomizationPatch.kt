@@ -134,6 +134,7 @@ val glideTrailCustomizationPatch = bytecodePatch(
         val onDrawHookName = "morpheOnDrawHook"
         if (overlayClass.methods.none { it.name == onDrawHookName }) {
             val onDrawHookSmali = """
+                :try_start_draw
                 # 1. If morpheIsRainbow is true, update hue on every animation frame
                 iget-boolean v0, p0, ${overlayClass.type}->morpheIsRainbow:Z
                 if-eqz v0, :cond_check_time
@@ -172,6 +173,9 @@ val glideTrailCustomizationPatch = bytecodePatch(
                 invoke-direct {p0}, ${overlayClass.type}->morpheApplyCustomTrailSettings()V
 
                 :cond_return
+                :try_end_draw
+                .catch Ljava/lang/Throwable; {:try_start_draw .. :try_end_draw} :catch_draw
+                :catch_draw
                 return-void
             """.trimIndent()
 
@@ -181,7 +185,7 @@ val glideTrailCustomizationPatch = bytecodePatch(
                     onDrawHookName,
                     emptyList(),
                     "V",
-                    AccessFlags.PUBLIC.value or AccessFlags.FINAL.value,
+                    AccessFlags.PRIVATE.value or AccessFlags.FINAL.value,
                     null,
                     null,
                     MutableMethodImplementation(10)
@@ -195,6 +199,7 @@ val glideTrailCustomizationPatch = bytecodePatch(
         val applySettingsMethodName = "morpheApplyCustomTrailSettings"
         if (overlayClass.methods.none { it.name == applySettingsMethodName }) {
             val applySettingsSmali = """
+                :try_start_apply
                 invoke-virtual {p0}, Landroid/view/View;->getContext()Landroid/content/Context;
                 move-result-object v0
                 if-nez v0, :cond_ctx_ok
@@ -509,6 +514,9 @@ val glideTrailCustomizationPatch = bytecodePatch(
                 iput v2, p0, ${overlayClass.type}->f:F
 
                 :cond_finish
+                :try_end_apply
+                .catch Ljava/lang/Throwable; {:try_start_apply .. :try_end_apply} :catch_apply
+                :catch_apply
                 return-void
             """.trimIndent()
 
