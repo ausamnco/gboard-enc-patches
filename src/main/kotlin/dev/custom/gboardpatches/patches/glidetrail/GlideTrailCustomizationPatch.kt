@@ -1,7 +1,6 @@
 package dev.custom.gboardpatches.patches.glidetrail
 
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
-import app.morphe.patcher.extensions.InstructionExtensions.removeInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
 import app.morphe.patcher.patch.AppTarget
 import app.morphe.patcher.patch.Compatibility
@@ -15,6 +14,7 @@ import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.WideLiteralInstruction
 import com.android.tools.smali.dexlib2.immutable.ImmutableField
 import com.android.tools.smali.dexlib2.immutable.ImmutableMethod
+import com.android.tools.smali.dexlib2.immutable.value.ImmutableLongEncodedValue
 
 /**
  * Standalone Morphe bytecode patch that enables deep customization of Gboard's glide typing trail.
@@ -80,7 +80,22 @@ val glideTrailCustomizationPatch = bytecodePatch(
             }
         }
 
-        addFieldIfMissing("morpheFadeDuration", "J", AccessFlags.PUBLIC.value or AccessFlags.STATIC.value)
+        // Field morpheFadeDuration with default 1000L initialValue encoded in DEX
+        val fadeField = overlayClass.fields.firstOrNull { it.name == "morpheFadeDuration" }
+        if (fadeField == null) {
+            overlayClass.fields.add(
+                ImmutableField(
+                    overlayClass.type,
+                    "morpheFadeDuration",
+                    "J",
+                    AccessFlags.PUBLIC.value or AccessFlags.STATIC.value,
+                    ImmutableLongEncodedValue(1000L),
+                    null,
+                    null
+                ).toMutable()
+            )
+        }
+
         addFieldIfMissing("morpheStockColor", "I", AccessFlags.PUBLIC.value)
         addFieldIfMissing("morpheStockWidth", "I", AccessFlags.PUBLIC.value)
         addFieldIfMissing("morpheStockRetention", "I", AccessFlags.PUBLIC.value)
@@ -92,43 +107,28 @@ val glideTrailCustomizationPatch = bytecodePatch(
 
         // 2. Initialize morpheFadeDuration in GestureOverlayView.<clinit>
         val clinitMethod = overlayClass.methods.firstOrNull { it.name == "<clinit>" }
-        if (clinitMethod == null) {
-            val newClinit = ImmutableMethod(
-                overlayClass.type,
-                "<clinit>",
-                emptyList(),
-                "V",
-                AccessFlags.STATIC.value or AccessFlags.CONSTRUCTOR.value,
-                null,
-                null,
-                MutableMethodImplementation(2)
-            ).toMutable()
-            newClinit.addInstructions(
-                0,
-                """
-                const-wide/16 v0, 0x3e8
-                sput-wide v0, ${overlayClass.type}->morpheFadeDuration:J
-                return-void
-                """.trimIndent()
-            )
-            overlayClass.methods.add(newClinit)
-        } else {
-            val impl = clinitMethod.implementation
-            if (impl != null) {
-                if (impl.registerCount < 2) {
-                    val regField = MutableMethodImplementation::class.java.getDeclaredField("registerCount")
-                    regField.isAccessible = true
-                    regField.setInt(impl, 2)
-                }
-                clinitMethod.addInstructions(
-                    0,
-                    """
-                    const-wide/16 v0, 0x3e8
-                    sput-wide v0, ${overlayClass.type}->morpheFadeDuration:J
-                    """.trimIndent()
-                )
-            }
+        if (clinitMethod != null) {
+            overlayClass.methods.remove(clinitMethod)
         }
+        val newClinit = ImmutableMethod(
+            overlayClass.type,
+            "<clinit>",
+            emptyList(),
+            "V",
+            AccessFlags.STATIC.value or AccessFlags.CONSTRUCTOR.value,
+            null,
+            null,
+            MutableMethodImplementation(2)
+        ).toMutable()
+        newClinit.addInstructions(
+            0,
+            """
+            const-wide/16 v0, 0x3e8
+            sput-wide v0, ${overlayClass.type}->morpheFadeDuration:J
+            return-void
+            """.trimIndent()
+        )
+        overlayClass.methods.add(newClinit)
 
         // 3. Add morpheOnDrawHook to GestureOverlayView
         val onDrawHookName = "morpheOnDrawHook"
@@ -167,7 +167,7 @@ val glideTrailCustomizationPatch = bytecodePatch(
                 sub-long v2, v0, v2
                 const-wide/16 v4, 0x1f4 # 500ms
                 cmp-long v2, v2, v4
-                if-lez v2, :cond_return
+                if-gez v2, :cond_return
                 iput-wide v0, p0, ${overlayClass.type}->morpheLastPrefCheck:J
                 invoke-direct {p0}, ${overlayClass.type}->morpheApplyCustomTrailSettings()V
 
@@ -563,6 +563,7 @@ val glideTrailCustomizationPatch = bytecodePatch(
                 iput v0, p0, ${overlayClass.type}->morpheStockAlphaDecay:F
                 iget v0, p0, ${overlayClass.type}->f:F
                 iput v0, p0, ${overlayClass.type}->morpheStockWidthDecay:F
+                invoke-direct {p0}, ${overlayClass.type}->morpheApplyCustomTrailSettings()V
             """.trimIndent()
             initMethod.addInstructions(returnVoidIndex, backupSmali)
         }
@@ -580,7 +581,7 @@ val glideTrailCustomizationPatch = bytecodePatch(
             """.trimIndent()
         )
 
-        // 7. Hook mvs.g (Gesture path processor) to use dynamic fade duration with zero-division safeguard
+        // 7. Hook mvs.g (Gesture path processor) to use dynamic fade duration
         val mvsField = overlayClass.fields.firstOrNull { field ->
             val cls = classDefByOrNull(field.type)
             cls != null && cls.methods.any { m ->
@@ -603,15 +604,9 @@ val glideTrailCustomizationPatch = bytecodePatch(
         if (const1000Index >= 0) {
             val ins = gInstructions[const1000Index] as OneRegisterInstruction
             val targetReg = ins.registerA
-            gMethod.removeInstruction(const1000Index)
-            gMethod.addInstructions(
+            gMethod.replaceInstruction(
                 const1000Index,
-                """
-                sget-wide v$targetReg, ${overlayClass.type}->morpheFadeDuration:J
-                const-wide/16 v15, 0x190
-                invoke-static {v$targetReg, v15}, Ljava/lang/Math;->max(JJ)J
-                move-result-wide v$targetReg
-                """.trimIndent()
+                "sget-wide v$targetReg, ${overlayClass.type}->morpheFadeDuration:J"
             )
         }
     }
