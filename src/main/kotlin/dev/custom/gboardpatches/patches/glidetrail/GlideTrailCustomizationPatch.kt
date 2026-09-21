@@ -1,6 +1,7 @@
 package dev.custom.gboardpatches.patches.glidetrail
 
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
+import app.morphe.patcher.extensions.InstructionExtensions.removeInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
 import app.morphe.patcher.patch.AppTarget
 import app.morphe.patcher.patch.Compatibility
@@ -87,12 +88,52 @@ val glideTrailCustomizationPatch = bytecodePatch(
         addFieldIfMissing("morpheStockWidthDecay", "F", AccessFlags.PUBLIC.value)
         addFieldIfMissing("morpheLastPrefCheck", "J", AccessFlags.PUBLIC.value)
         addFieldIfMissing("morpheIsRainbow", "Z", AccessFlags.PUBLIC.value)
+        addFieldIfMissing("morpheCustomApplied", "Z", AccessFlags.PUBLIC.value)
 
-        // 2. Add morpheOnDrawHook to GestureOverlayView
+        // 2. Initialize morpheFadeDuration in GestureOverlayView.<clinit>
+        val clinitMethod = overlayClass.methods.firstOrNull { it.name == "<clinit>" }
+        if (clinitMethod == null) {
+            val newClinit = ImmutableMethod(
+                overlayClass.type,
+                "<clinit>",
+                emptyList(),
+                "V",
+                AccessFlags.STATIC.value or AccessFlags.CONSTRUCTOR.value,
+                null,
+                null,
+                MutableMethodImplementation(2)
+            ).toMutable()
+            newClinit.addInstructions(
+                0,
+                """
+                const-wide/16 v0, 0x3e8
+                sput-wide v0, ${overlayClass.type}->morpheFadeDuration:J
+                return-void
+                """.trimIndent()
+            )
+            overlayClass.methods.add(newClinit)
+        } else {
+            val impl = clinitMethod.implementation
+            if (impl != null) {
+                if (impl.registerCount < 2) {
+                    val regField = MutableMethodImplementation::class.java.getDeclaredField("registerCount")
+                    regField.isAccessible = true
+                    regField.setInt(impl, 2)
+                }
+                clinitMethod.addInstructions(
+                    0,
+                    """
+                    const-wide/16 v0, 0x3e8
+                    sput-wide v0, ${overlayClass.type}->morpheFadeDuration:J
+                    """.trimIndent()
+                )
+            }
+        }
+
+        // 3. Add morpheOnDrawHook to GestureOverlayView
         val onDrawHookName = "morpheOnDrawHook"
         if (overlayClass.methods.none { it.name == onDrawHookName }) {
             val onDrawHookSmali = """
-                :try_start_draw
                 # 1. If morpheIsRainbow is true, update hue on every animation frame
                 iget-boolean v0, p0, ${overlayClass.type}->morpheIsRainbow:Z
                 if-eqz v0, :cond_check_time
@@ -131,9 +172,6 @@ val glideTrailCustomizationPatch = bytecodePatch(
                 invoke-direct {p0}, ${overlayClass.type}->morpheApplyCustomTrailSettings()V
 
                 :cond_return
-                :try_end_draw
-                .catch Ljava/lang/Throwable; {:try_start_draw .. :try_end_draw} :catch_draw
-                :catch_draw
                 return-void
             """.trimIndent()
 
@@ -153,70 +191,98 @@ val glideTrailCustomizationPatch = bytecodePatch(
             )
         }
 
-        // 3. Add morpheApplyCustomTrailSettings to GestureOverlayView
+        // 4. Add morpheApplyCustomTrailSettings to GestureOverlayView
         val applySettingsMethodName = "morpheApplyCustomTrailSettings"
         if (overlayClass.methods.none { it.name == applySettingsMethodName }) {
             val applySettingsSmali = """
-                :try_start_main
                 invoke-virtual {p0}, Landroid/view/View;->getContext()Landroid/content/Context;
                 move-result-object v0
-                if-nez v0, :cond_get_ctx
+                if-nez v0, :cond_ctx_ok
                 return-void
 
-                :cond_get_ctx
+                :cond_ctx_ok
                 invoke-virtual {v0}, Landroid/content/Context;->isDeviceProtectedStorage()Z
                 move-result v1
-                if-eqz v1, :cond_get_de
+                if-eqz v1, :cond_try_de
                 move-object v1, v0
                 goto :cond_read_de
 
-                :cond_get_de
+                :cond_try_de
                 invoke-virtual {v0}, Landroid/content/Context;->createDeviceProtectedStorageContext()Landroid/content/Context;
                 move-result-object v1
 
                 :cond_read_de
-                if-eqz v1, :cond_try_ce
+                if-eqz v1, :cond_fallback_ce
                 invoke-static {v1}, Landroid/preference/PreferenceManager;->getDefaultSharedPreferences(Landroid/content/Context;)Landroid/content/SharedPreferences;
                 move-result-object v1
-                if-eqz v1, :cond_try_ce
-                goto :cond_prefs_ready
+                if-eqz v1, :cond_fallback_ce
+                goto :cond_prefs_ok
 
-                :cond_try_ce
+                :cond_fallback_ce
                 invoke-static {v0}, Landroid/preference/PreferenceManager;->getDefaultSharedPreferences(Landroid/content/Context;)Landroid/content/SharedPreferences;
                 move-result-object v1
-                if-nez v1, :cond_prefs_ready
+                if-nez v1, :cond_prefs_ok
                 return-void
 
-                :cond_prefs_ready
-                # Check Master Customization Toggle
+                :cond_prefs_ok
+                # 1. Master Customization Toggle (default false)
                 const-string v2, "pref_key_glide_trail_custom_enabled"
-                const/4 v3, 0x1
+                const/4 v3, 0x0
                 invoke-interface {v1, v2, v3}, Landroid/content/SharedPreferences;->getBoolean(Ljava/lang/String;Z)Z
                 move-result v2
                 if-nez v2, :cond_custom_enabled
 
-                # Revert to stock defaults if master toggle is off
-                const/4 v2, 0x0
-                iput-boolean v2, p0, ${overlayClass.type}->morpheIsRainbow:Z
-                iget v2, p0, ${overlayClass.type}->morpheStockWidth:I
-                if-lez v2, :cond_revert_speed
-                iput v2, p0, ${overlayClass.type}->b:I
-                iget v2, p0, ${overlayClass.type}->morpheStockRetention:I
-                iput v2, p0, ${overlayClass.type}->d:I
-                iget v2, p0, ${overlayClass.type}->morpheStockAlphaDecay:F
-                iput v2, p0, ${overlayClass.type}->e:F
-                iget v2, p0, ${overlayClass.type}->morpheStockWidthDecay:F
-                iput v2, p0, ${overlayClass.type}->f:F
-                iget v2, p0, ${overlayClass.type}->morpheStockColor:I
-                invoke-virtual {p0, v2}, ${overlayClass.type}->b(I)V
-
-                :cond_revert_speed
+                # Master toggle is OFF. Check if customizations were previously applied.
+                iget-boolean v2, p0, ${overlayClass.type}->morpheCustomApplied:Z
+                if-nez v2, :cond_revert_stock
+                # Never customized, pure stock state. Ensure fade duration is stock 1000L and exit immediately.
                 const-wide/16 v2, 0x3e8
                 sput-wide v2, ${overlayClass.type}->morpheFadeDuration:J
                 return-void
 
+                :cond_revert_stock
+                const/4 v2, 0x0
+                iput-boolean v2, p0, ${overlayClass.type}->morpheCustomApplied:Z
+                iput-boolean v2, p0, ${overlayClass.type}->morpheIsRainbow:Z
+                const-wide/16 v2, 0x3e8
+                sput-wide v2, ${overlayClass.type}->morpheFadeDuration:J
+
+                iget v2, p0, ${overlayClass.type}->morpheStockWidth:I
+                if-lez v2, :cond_skip_w
+                iput v2, p0, ${overlayClass.type}->b:I
+                :cond_skip_w
+
+                iget v2, p0, ${overlayClass.type}->morpheStockRetention:I
+                if-lez v2, :cond_skip_ret
+                iput v2, p0, ${overlayClass.type}->d:I
+                :cond_skip_ret
+
+                iget v2, p0, ${overlayClass.type}->morpheStockAlphaDecay:F
+                const/4 v3, 0x0
+                cmpl-float v3, v2, v3
+                if-lez v3, :cond_skip_ad
+                iput v2, p0, ${overlayClass.type}->e:F
+                :cond_skip_ad
+
+                iget v2, p0, ${overlayClass.type}->morpheStockWidthDecay:F
+                const/4 v3, 0x0
+                cmpl-float v3, v2, v3
+                if-lez v3, :cond_skip_wd
+                iput v2, p0, ${overlayClass.type}->f:F
+                :cond_skip_wd
+
+                iget v2, p0, ${overlayClass.type}->morpheStockColor:I
+                if-eqz v2, :cond_skip_color
+                invoke-virtual {p0, v2}, ${overlayClass.type}->b(I)V
+                :cond_skip_color
+
+                return-void
+
                 :cond_custom_enabled
-                # 1. Rainbow Check
+                const/4 v2, 0x1
+                iput-boolean v2, p0, ${overlayClass.type}->morpheCustomApplied:Z
+
+                # 2. Rainbow Check
                 const-string v2, "pref_key_glide_trail_rainbow"
                 const/4 v3, 0x0
                 invoke-interface {v1, v2, v3}, Landroid/content/SharedPreferences;->getBoolean(Ljava/lang/String;Z)Z
@@ -300,7 +366,7 @@ val glideTrailCustomizationPatch = bytecodePatch(
                 if-eqz v2, :cond_speed_check
                 invoke-virtual {p0, v2}, ${overlayClass.type}->b(I)V
 
-                # 2. Speed / Fade Duration
+                # 3. Speed / Fade Duration
                 :cond_speed_check
                 const-string v2, "pref_key_glide_trail_speed_fast"
                 const/4 v3, 0x0
@@ -335,12 +401,20 @@ val glideTrailCustomizationPatch = bytecodePatch(
                 const-wide/16 v2, 0x3e8 # 1000L (Stock Normal)
                 sput-wide v2, ${overlayClass.type}->morpheFadeDuration:J
 
-                # 3. Width / Thickness
+                # 4. Width / Thickness
                 :cond_width_check
                 invoke-virtual {p0}, Landroid/view/View;->getResources()Landroid/content/res/Resources;
                 move-result-object v2
+                if-nez v2, :cond_res_ok
+                goto :cond_length_check
+
+                :cond_res_ok
                 invoke-virtual {v2}, Landroid/content/res/Resources;->getDisplayMetrics()Landroid/util/DisplayMetrics;
                 move-result-object v2
+                if-nez v2, :cond_dm_ok
+                goto :cond_length_check
+
+                :cond_dm_ok
                 iget v2, v2, Landroid/util/DisplayMetrics;->density:F
 
                 const-string v3, "pref_key_glide_trail_width_thick"
@@ -383,7 +457,7 @@ val glideTrailCustomizationPatch = bytecodePatch(
                 if-lez v2, :cond_length_check
                 iput v2, p0, ${overlayClass.type}->b:I
 
-                # 4. Length / Decay
+                # 5. Length / Decay
                 :cond_length_check
                 const-string v2, "pref_key_glide_trail_length_long"
                 const/4 v3, 0x0
@@ -435,10 +509,6 @@ val glideTrailCustomizationPatch = bytecodePatch(
                 iput v2, p0, ${overlayClass.type}->f:F
 
                 :cond_finish
-                :cond_return
-                :try_end_main
-                .catch Ljava/lang/Throwable; {:try_start_main .. :try_end_main} :catch_all
-                :catch_all
                 return-void
             """.trimIndent()
 
@@ -458,7 +528,7 @@ val glideTrailCustomizationPatch = bytecodePatch(
             )
         }
 
-        // 4. Hook GestureOverlayView.c(Context, AttributeSet) right before return-void
+        // 5. Hook GestureOverlayView.c(Context, AttributeSet)
         val initMethod = overlayClass.methods.firstOrNull { m ->
             m.name == "c" && m.parameterTypes.size == 2 &&
             m.parameterTypes[0] == "Landroid/content/Context;" &&
@@ -466,6 +536,22 @@ val glideTrailCustomizationPatch = bytecodePatch(
         } ?: error("Method c(Context, AttributeSet) not found in GestureOverlayView")
 
         val initImpl = initMethod.implementation ?: error("No implementation in GestureOverlayView.c")
+
+        // 5a. Save stock color before b(I)V call
+        val bCallIndex = initImpl.instructions.indexOfLast { ins ->
+            ins.opcode == Opcode.INVOKE_VIRTUAL &&
+            (ins as? com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction)?.reference?.toString()?.contains("->b(I)V") == true
+        }
+        if (bCallIndex >= 0) {
+            initMethod.addInstructions(
+                bCallIndex,
+                """
+                iput v0, p0, ${overlayClass.type}->morpheStockColor:I
+                """.trimIndent()
+            )
+        }
+
+        // 5b. Save stock width, retention, and decay rates right before return-void
         val returnVoidIndex = initImpl.instructions.indexOfLast { it.opcode == Opcode.RETURN_VOID }
         if (returnVoidIndex >= 0) {
             val backupSmali = """
@@ -477,12 +563,11 @@ val glideTrailCustomizationPatch = bytecodePatch(
                 iput v0, p0, ${overlayClass.type}->morpheStockAlphaDecay:F
                 iget v0, p0, ${overlayClass.type}->f:F
                 iput v0, p0, ${overlayClass.type}->morpheStockWidthDecay:F
-                invoke-direct {p0}, ${overlayClass.type}->morpheApplyCustomTrailSettings()V
             """.trimIndent()
             initMethod.addInstructions(returnVoidIndex, backupSmali)
         }
 
-        // 5. Hook GestureOverlayView.onDraw(Canvas) at index 0
+        // 6. Hook GestureOverlayView.onDraw(Canvas) at index 0
         val onDrawMethod = overlayClass.methods.firstOrNull { m ->
             m.name == "onDraw" && m.parameterTypes.size == 1 &&
             m.parameterTypes[0] == "Landroid/graphics/Canvas;"
@@ -495,7 +580,7 @@ val glideTrailCustomizationPatch = bytecodePatch(
             """.trimIndent()
         )
 
-        // 6. Hook mvs.g (Gesture path processor) to use dynamic fade duration
+        // 7. Hook mvs.g (Gesture path processor) to use dynamic fade duration with zero-division safeguard
         val mvsField = overlayClass.fields.firstOrNull { field ->
             val cls = classDefByOrNull(field.type)
             cls != null && cls.methods.any { m ->
@@ -518,9 +603,17 @@ val glideTrailCustomizationPatch = bytecodePatch(
         if (const1000Index >= 0) {
             val ins = gInstructions[const1000Index] as OneRegisterInstruction
             val targetReg = ins.registerA
-            gMethod.replaceInstruction(
+            gMethod.removeInstruction(const1000Index)
+            gMethod.addInstructions(
                 const1000Index,
-                "sget-wide v$targetReg, ${overlayClass.type}->morpheFadeDuration:J"
+                """
+                sget-wide v$targetReg, ${overlayClass.type}->morpheFadeDuration:J
+                const-wide/16 v15, 0x0
+                cmp-long v15, v$targetReg, v15
+                if-gtz v15, :cond_morphe_fade_ok
+                const-wide/16 v$targetReg, 0x3e8
+                :cond_morphe_fade_ok
+                """.trimIndent()
             )
         }
     }
