@@ -608,11 +608,9 @@ val glideTrailCustomizationPatch = bytecodePatch(
                 const1000Index,
                 """
                 sget-wide v$targetReg, ${overlayClass.type}->morpheFadeDuration:J
-                const-wide/16 v15, 0x0
-                cmp-long v15, v$targetReg, v15
-                if-gtz v15, :cond_morphe_fade_ok
-                const-wide/16 v$targetReg, 0x3e8
-                :cond_morphe_fade_ok
+                const-wide/16 v15, 0x190
+                invoke-static {v$targetReg, v15}, Ljava/lang/Math;->max(JJ)J
+                move-result-wide v$targetReg
                 """.trimIndent()
             )
         }
