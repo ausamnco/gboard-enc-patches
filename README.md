@@ -12,7 +12,7 @@ This repository provides three independent patches that can be selected individu
 
 1. **Backspace Repeat Haptic Feedback**: Introduces continuous tactile feedback pulses when the backspace key is held down during repeated character deletion (with empty text suppression and a dedicated settings toggle).
 2. **Enter Key Tasker Event**: Broadcasts a high-priority Android Intent event to **Tasker** whenever the Enter key or bottom-right IME Action key is pressed, including active app package name, action type, raw keycode, and preceding text.
-3. **Glide Trail Customization**: Samsung Keyboard / Good Lock (Keys Cafe) style glide typing trail customization. Allows customizing trail speed (fade duration), dynamic Rainbow RGB spectrum, solid color presets, thickness, and length decay.
+3. **Glide Trail Customization**: Samsung Keyboard / Good Lock (Keys Cafe) style glide typing trail customization. Allows customizing trail speed (fade duration), dynamic Rainbow RGB spectrum, solid custom color via an interactive HSV Color Wheel with presets, thickness, and length decay.
 
 ---
 
@@ -85,21 +85,13 @@ This repository provides three independent patches that can be selected individu
 Customizes Gboard's glide typing gesture trail with full visual control inspired by Samsung Keyboard's Keys Cafe:
 
 - **How it works:** Hooks Gboard's `GestureOverlayView` and trail point fade processor (`mvs.g`). Replaces the hardcoded 1000ms fade timer with a dynamically configurable decay clock and adjusts stroke width, point retention buffer, alpha decay rate, and paint color filter in real time.
+- **Interactive HSV Color Wheel:** Tap the color wheel setting to open a full color picker dialog featuring a radial HSV wheel, brightness slider, live hex code preview, 8 quick presets, and a "Reset to Theme" option.
 - **Dynamic Rainbow RGB Mode:** Continuously cycles through the HSV color spectrum based on system uptime, giving the trail a vivid moving RGB wave effect while gliding.
-- **Color Presets:** Vibrant Cyan / Neon Blue, Vivid Purple, Hot Pink / Magenta, Crimson Red, Neon Orange, Emerald Green, and Pure White.
-- **Speed (Fade Duration):**
-  - *Fast Fade (500ms)*: Snappy, transient trail.
-  - *Slow Fade (2000ms)*: Extended persistence.
-  - *Ultra Slow (4000ms)*: Lingering artistic trail.
-- **Width (Thickness):**
-  - *Thin (6dp)*: Delicate, pencil-like gesture line.
-  - *Thick (22dp)*: Bold, prominent stroke.
-  - *Extra Thick (32dp)*: High-impact neon brush style.
-- **Length (Tail Decay):**
-  - *Short*: Tight tail following immediately behind the finger.
-  - *Long*: Extended tail showing recent gesture trajectory.
-  - *Infinite*: Retains the complete trail until gesture lift.
-- **Gboard Settings:** Adds a dedicated *"Customize glide trail"* category directly under *Settings -> Glide typing*.
+- **Continuous Control Sliders:**
+  - **Fade Duration (Speed):** Slider from 200ms (ultra-fast, snappy) to 4000ms (slow lingering ribbon) with live numeric value display.
+  - **Width & Thickness:** Slider from 2dp (thin hairline) to 40dp (thick prominent glow) with live numeric value display.
+  - **Length & Retention:** Slider from 5 points (tight compact tail) to 100 points (extended full trail ribbon) with live numeric value display.
+- **Grouped Settings:** All customization controls are cleanly grouped under a dedicated *"Glide Trail Customizations"* category directly beneath the stock "Show gesture trail" toggle in *Settings -> Glide typing*, and automatically enable/disable together.
 
 ---
 
@@ -115,6 +107,6 @@ cd gboard-enc-patches
 ```
 
 Compiled outputs will be located in `dist/`:
-- `dist/patches-1.3.4.mpp`: Release bundle for Morphe Manager.
+- `dist/patches-1.4.0.mpp`: Release bundle for Morphe Manager.
 - `dist/gboard-backspace-haptics.jar`: Standard JAR format.
 

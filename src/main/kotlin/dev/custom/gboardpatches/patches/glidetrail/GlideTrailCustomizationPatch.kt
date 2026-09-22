@@ -14,18 +14,17 @@ import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.WideLiteralInstruction
 import com.android.tools.smali.dexlib2.immutable.ImmutableField
 import com.android.tools.smali.dexlib2.immutable.ImmutableMethod
+import com.android.tools.smali.dexlib2.immutable.ImmutableMethodParameter
 import com.android.tools.smali.dexlib2.immutable.value.ImmutableLongEncodedValue
 
 /**
  * Standalone Morphe bytecode patch that enables deep customization of Gboard's glide typing trail.
  *
  * It allows adjusting:
- * - Color: Rainbow dynamic RGB cycling, or solid vivid colors (Neon Cyan, Electric Purple, Hot Pink,
- *   Vibrant Red, Neon Orange, Electric Green, Pure White, or Theme Default).
- * - Speed / Fade Duration: Fast (400ms), Normal (1000ms), Slow (2200ms), Ultra slow (4000ms ribbon).
- * - Width / Thickness: Thin (6dp), Normal (13dp), Thick (22dp), Extra thick (32dp).
- * - Length / Tail Decay: Short (compact 8-pt tail), Normal (~20-pt tail), Extended (60-pt tail),
- *   or Full stroke length without distance taper decay.
+ * - Color: Rainbow dynamic RGB cycling, or solid vivid colors via an interactive HSV Color Wheel.
+ * - Speed / Fade Duration: Continuous slider (200ms to 4000ms).
+ * - Width / Thickness: Continuous slider (2dp to 40dp).
+ * - Length / Tail Decay: Continuous slider (5 to 100 points).
  *
  * Hook Points:
  * 1. `GestureOverlayView` (com.google.android.apps.inputmethod.libs.gestureui.GestureOverlayView):
@@ -37,10 +36,15 @@ import com.android.tools.smali.dexlib2.immutable.value.ImmutableLongEncodedValue
  *    - Replaces the hardcoded `const-wide/16 v13, 1000` instruction with:
  *      `sget-wide v13, Lcom/google/android/apps/inputmethod/libs/gestureui/GestureOverlayView;->morpheFadeDuration:J`
  *      which scales the alpha and stroke decay dynamically based on the configured duration.
+ * 3. `GesturePreferenceSettingsFragment`:
+ *    - Intercepts clicks on the color wheel preference to open the interactive ColorWheelDialog.
+ *    - Updates the preference summary with current hex code onResume.
+ * 4. `SeekBarPreference`:
+ *    - Enables showSeekBarValue and updatesContinuously for glide trail sliders.
  */
 val glideTrailCustomizationPatch = bytecodePatch(
     name = "Glide Trail Customization",
-    description = "Allows customizing glide typing trail color (including dynamic Rainbow RGB), fade speed, thickness, and length.",
+    description = "Allows customizing glide typing trail color (including dynamic Rainbow RGB and Color Wheel), fade speed, thickness, and length.",
     default = true
 ) {
     compatibleWith(
@@ -55,6 +59,7 @@ val glideTrailCustomizationPatch = bytecodePatch(
         )
     )
     dependsOn(glideTrailSettingsPatch)
+    extendWith("colorwheel.dex")
 
     execute {
         val overlayClass = mutableClassDefBy("Lcom/google/android/apps/inputmethod/libs/gestureui/GestureOverlayView;")
@@ -287,82 +292,21 @@ val glideTrailCustomizationPatch = bytecodePatch(
                 const/4 v2, 0x1
                 iput-boolean v2, p0, ${overlayClass.type}->morpheCustomApplied:Z
 
-                # 2. Rainbow Check
+                # 2. Color & Rainbow Check
                 const-string v2, "pref_key_glide_trail_rainbow"
                 const/4 v3, 0x0
                 invoke-interface {v1, v2, v3}, Landroid/content/SharedPreferences;->getBoolean(Ljava/lang/String;Z)Z
                 move-result v2
                 iput-boolean v2, p0, ${overlayClass.type}->morpheIsRainbow:Z
-                if-eqz v2, :cond_check_cyan
+                if-eqz v2, :cond_check_custom_color
                 goto :cond_speed_check
 
-                :cond_check_cyan
-                const-string v2, "pref_key_glide_trail_color_cyan"
+                :cond_check_custom_color
+                const-string v2, "pref_key_glide_trail_custom_color"
                 const/4 v3, 0x0
-                invoke-interface {v1, v2, v3}, Landroid/content/SharedPreferences;->getBoolean(Ljava/lang/String;Z)Z
-                move-result v2
-                if-eqz v2, :cond_check_purple
-                const v2, -0xff1a01 # 0xFF00E5FF (Neon Cyan)
-                invoke-virtual {p0, v2}, ${overlayClass.type}->b(I)V
-                goto :cond_speed_check
-
-                :cond_check_purple
-                const-string v2, "pref_key_glide_trail_color_purple"
-                const/4 v3, 0x0
-                invoke-interface {v1, v2, v3}, Landroid/content/SharedPreferences;->getBoolean(Ljava/lang/String;Z)Z
-                move-result v2
-                if-eqz v2, :cond_check_pink
-                const v2, -0x2aff07 # 0xFFD500F9 (Electric Purple)
-                invoke-virtual {p0, v2}, ${overlayClass.type}->b(I)V
-                goto :cond_speed_check
-
-                :cond_check_pink
-                const-string v2, "pref_key_glide_trail_color_pink"
-                const/4 v3, 0x0
-                invoke-interface {v1, v2, v3}, Landroid/content/SharedPreferences;->getBoolean(Ljava/lang/String;Z)Z
-                move-result v2
-                if-eqz v2, :cond_check_red
-                const v2, -0xbf7f # 0xFFFF4081 (Hot Pink)
-                invoke-virtual {p0, v2}, ${overlayClass.type}->b(I)V
-                goto :cond_speed_check
-
-                :cond_check_red
-                const-string v2, "pref_key_glide_trail_color_red"
-                const/4 v3, 0x0
-                invoke-interface {v1, v2, v3}, Landroid/content/SharedPreferences;->getBoolean(Ljava/lang/String;Z)Z
-                move-result v2
-                if-eqz v2, :cond_check_orange
-                const v2, -0xe8bc # 0xFFFF1744 (Vibrant Red)
-                invoke-virtual {p0, v2}, ${overlayClass.type}->b(I)V
-                goto :cond_speed_check
-
-                :cond_check_orange
-                const-string v2, "pref_key_glide_trail_color_orange"
-                const/4 v3, 0x0
-                invoke-interface {v1, v2, v3}, Landroid/content/SharedPreferences;->getBoolean(Ljava/lang/String;Z)Z
-                move-result v2
-                if-eqz v2, :cond_check_green
-                const v2, -0x9300 # 0xFFFF6D00 (Neon Orange)
-                invoke-virtual {p0, v2}, ${overlayClass.type}->b(I)V
-                goto :cond_speed_check
-
-                :cond_check_green
-                const-string v2, "pref_key_glide_trail_color_green"
-                const/4 v3, 0x0
-                invoke-interface {v1, v2, v3}, Landroid/content/SharedPreferences;->getBoolean(Ljava/lang/String;Z)Z
-                move-result v2
-                if-eqz v2, :cond_check_white
-                const v2, -0xff198a # 0xFF00E676 (Electric Green)
-                invoke-virtual {p0, v2}, ${overlayClass.type}->b(I)V
-                goto :cond_speed_check
-
-                :cond_check_white
-                const-string v2, "pref_key_glide_trail_color_white"
-                const/4 v3, 0x0
-                invoke-interface {v1, v2, v3}, Landroid/content/SharedPreferences;->getBoolean(Ljava/lang/String;Z)Z
+                invoke-interface {v1, v2, v3}, Landroid/content/SharedPreferences;->getInt(Ljava/lang/String;I)I
                 move-result v2
                 if-eqz v2, :cond_check_stock_color
-                const/4 v2, -0x1 # 0xFFFFFFFF (Pure White)
                 invoke-virtual {p0, v2}, ${overlayClass.type}->b(I)V
                 goto :cond_speed_check
 
@@ -371,42 +315,20 @@ val glideTrailCustomizationPatch = bytecodePatch(
                 if-eqz v2, :cond_speed_check
                 invoke-virtual {p0, v2}, ${overlayClass.type}->b(I)V
 
-                # 3. Speed / Fade Duration
+                # 3. Speed / Fade Duration Slider (ms)
                 :cond_speed_check
-                const-string v2, "pref_key_glide_trail_speed_fast"
-                const/4 v3, 0x0
-                invoke-interface {v1, v2, v3}, Landroid/content/SharedPreferences;->getBoolean(Ljava/lang/String;Z)Z
+                const-string v2, "pref_key_glide_trail_speed_ms"
+                const/16 v3, 0x3e8 # 1000ms default
+                invoke-interface {v1, v2, v3}, Landroid/content/SharedPreferences;->getInt(Ljava/lang/String;I)I
                 move-result v2
-                if-eqz v2, :cond_speed_slow
-                const-wide/16 v2, 0x190 # 400L (Fast)
-                sput-wide v2, ${overlayClass.type}->morpheFadeDuration:J
-                goto :cond_width_check
-
-                :cond_speed_slow
-                const-string v2, "pref_key_glide_trail_speed_slow"
-                const/4 v3, 0x0
-                invoke-interface {v1, v2, v3}, Landroid/content/SharedPreferences;->getBoolean(Ljava/lang/String;Z)Z
-                move-result v2
-                if-eqz v2, :cond_speed_ultraslow
-                const-wide/16 v2, 0x898 # 2200L (Slow)
-                sput-wide v2, ${overlayClass.type}->morpheFadeDuration:J
-                goto :cond_width_check
-
-                :cond_speed_ultraslow
-                const-string v2, "pref_key_glide_trail_speed_ultraslow"
-                const/4 v3, 0x0
-                invoke-interface {v1, v2, v3}, Landroid/content/SharedPreferences;->getBoolean(Ljava/lang/String;Z)Z
-                move-result v2
-                if-eqz v2, :cond_speed_stock
-                const-wide/16 v2, 0xfa0 # 4000L (Ultra slow)
-                sput-wide v2, ${overlayClass.type}->morpheFadeDuration:J
-                goto :cond_width_check
-
-                :cond_speed_stock
-                const-wide/16 v2, 0x3e8 # 1000L (Stock Normal)
+                const/16 v3, 0xc8 # 200ms min
+                if-ge v2, v3, :cond_speed_clamped
+                const/16 v2, 0xc8
+                :cond_speed_clamped
+                int-to-long v2, v2
                 sput-wide v2, ${overlayClass.type}->morpheFadeDuration:J
 
-                # 4. Width / Thickness
+                # 4. Width / Thickness Slider (dp)
                 :cond_width_check
                 invoke-virtual {p0}, Landroid/view/View;->getResources()Landroid/content/res/Resources;
                 move-result-object v2
@@ -422,96 +344,42 @@ val glideTrailCustomizationPatch = bytecodePatch(
                 :cond_dm_ok
                 iget v2, v2, Landroid/util/DisplayMetrics;->density:F
 
-                const-string v3, "pref_key_glide_trail_width_thick"
-                const/4 v4, 0x0
-                invoke-interface {v1, v3, v4}, Landroid/content/SharedPreferences;->getBoolean(Ljava/lang/String;Z)Z
+                const-string v3, "pref_key_glide_trail_width_dp"
+                const/16 v4, 0xd # 13dp default
+                invoke-interface {v1, v3, v4}, Landroid/content/SharedPreferences;->getInt(Ljava/lang/String;I)I
                 move-result v3
-                if-eqz v3, :cond_width_extra
-                const/high16 v3, 0x41b00000 # 22.0f
+                const/4 v4, 0x2 # 2dp min
+                if-ge v3, v4, :cond_width_clamped
+                const/4 v3, 0x2
+                :cond_width_clamped
+                int-to-float v3, v3
                 mul-float/2addr v3, v2
                 float-to-int v2, v3
                 iput v2, p0, ${overlayClass.type}->b:I
-                goto :cond_length_check
 
-                :cond_width_extra
-                const-string v3, "pref_key_glide_trail_width_extrathick"
-                const/4 v4, 0x0
-                invoke-interface {v1, v3, v4}, Landroid/content/SharedPreferences;->getBoolean(Ljava/lang/String;Z)Z
-                move-result v3
-                if-eqz v3, :cond_width_thin
-                const/high16 v3, 0x42000000 # 32.0f
-                mul-float/2addr v3, v2
-                float-to-int v2, v3
-                iput v2, p0, ${overlayClass.type}->b:I
-                goto :cond_length_check
-
-                :cond_width_thin
-                const-string v3, "pref_key_glide_trail_width_thin"
-                const/4 v4, 0x0
-                invoke-interface {v1, v3, v4}, Landroid/content/SharedPreferences;->getBoolean(Ljava/lang/String;Z)Z
-                move-result v3
-                if-eqz v3, :cond_width_stock
-                const/high16 v3, 0x40c00000 # 6.0f
-                mul-float/2addr v3, v2
-                float-to-int v2, v3
-                iput v2, p0, ${overlayClass.type}->b:I
-                goto :cond_length_check
-
-                :cond_width_stock
-                iget v2, p0, ${overlayClass.type}->morpheStockWidth:I
-                if-lez v2, :cond_length_check
-                iput v2, p0, ${overlayClass.type}->b:I
-
-                # 5. Length / Decay
+                # 5. Length / Retention Points Slider
                 :cond_length_check
-                const-string v2, "pref_key_glide_trail_length_long"
-                const/4 v3, 0x0
-                invoke-interface {v1, v2, v3}, Landroid/content/SharedPreferences;->getBoolean(Ljava/lang/String;Z)Z
+                const-string v2, "pref_key_glide_trail_length_pts"
+                const/16 v3, 0x14 # 20 pts default
+                invoke-interface {v1, v2, v3}, Landroid/content/SharedPreferences;->getInt(Ljava/lang/String;I)I
                 move-result v2
-                if-eqz v2, :cond_length_infinite
-                const/16 v2, 0x3c # 60 points
+                const/4 v3, 0x5 # 5 pts min
+                if-ge v2, v3, :cond_length_clamped
+                const/4 v2, 0x5
+                :cond_length_clamped
                 iput v2, p0, ${overlayClass.type}->d:I
-                const v2, 0x3dcccccd # 0.1f
-                iput v2, p0, ${overlayClass.type}->e:F
-                const v2, 0x3d4ccccd # 0.05f
-                iput v2, p0, ${overlayClass.type}->f:F
-                goto :cond_finish
 
-                :cond_length_infinite
-                const-string v2, "pref_key_glide_trail_length_infinite"
-                const/4 v3, 0x0
-                invoke-interface {v1, v2, v3}, Landroid/content/SharedPreferences;->getBoolean(Ljava/lang/String;Z)Z
-                move-result v2
-                if-eqz v2, :cond_length_short
-                const/16 v2, 0x7d0 # 2000 points (full stroke retention)
-                iput v2, p0, ${overlayClass.type}->d:I
-                const/4 v2, 0x0
-                iput v2, p0, ${overlayClass.type}->e:F
-                iput v2, p0, ${overlayClass.type}->f:F
-                goto :cond_finish
+                # Dynamic decay rates:
+                # alphaDecay = 2.0f / length (e:F)
+                # widthDecay = 1.0f / length (f:F)
+                int-to-float v3, v2
+                const/high16 v4, 0x40000000 # 2.0f
+                div-float/2addr v4, v3
+                iput v4, p0, ${overlayClass.type}->e:F
 
-                :cond_length_short
-                const-string v2, "pref_key_glide_trail_length_short"
-                const/4 v3, 0x0
-                invoke-interface {v1, v2, v3}, Landroid/content/SharedPreferences;->getBoolean(Ljava/lang/String;Z)Z
-                move-result v2
-                if-eqz v2, :cond_length_stock
-                const/16 v2, 0x8 # 8 points
-                iput v2, p0, ${overlayClass.type}->d:I
-                const/high16 v2, 0x3f800000 # 1.0f
-                iput v2, p0, ${overlayClass.type}->e:F
-                const/high16 v2, 0x3f000000 # 0.5f
-                iput v2, p0, ${overlayClass.type}->f:F
-                goto :cond_finish
-
-                :cond_length_stock
-                iget v2, p0, ${overlayClass.type}->morpheStockRetention:I
-                if-lez v2, :cond_finish
-                iput v2, p0, ${overlayClass.type}->d:I
-                iget v2, p0, ${overlayClass.type}->morpheStockAlphaDecay:F
-                iput v2, p0, ${overlayClass.type}->e:F
-                iget v2, p0, ${overlayClass.type}->morpheStockWidthDecay:F
-                iput v2, p0, ${overlayClass.type}->f:F
+                const/high16 v4, 0x3f800000 # 1.0f
+                div-float/2addr v4, v3
+                iput v4, p0, ${overlayClass.type}->f:F
 
                 :cond_finish
                 :try_end_apply
@@ -616,6 +484,110 @@ val glideTrailCustomizationPatch = bytecodePatch(
                 const1000Index,
                 "sget-wide v$targetReg, ${overlayClass.type}->morpheFadeDuration:J"
             )
+        }
+
+        // 8. Hook GesturePreferenceSettingsFragment for Color Wheel dialog
+        val gestureFragClass = mutableClassDefByOrNull("Lcom/google/android/apps/inputmethod/latin/preference/GesturePreferenceSettingsFragment;")
+        if (gestureFragClass != null) {
+            // 8a. Add aA(Preference)Z (onPreferenceTreeClick) to intercept color wheel preference tap
+            val aAMethod = gestureFragClass.methods.firstOrNull { it.name == "aA" && it.parameterTypes.size == 1 }
+            if (aAMethod == null) {
+                val aAMethodSmali = """
+                    :try_start_click
+                    if-eqz p1, :cond_check_super
+                    invoke-virtual {p1}, Landroidx/preference/Preference;->getKey()Ljava/lang/String;
+                    move-result-object v0
+                    const-string v1, "pref_key_glide_trail_color_wheel"
+                    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+                    move-result v0
+                    if-eqz v0, :cond_check_super
+
+                    invoke-virtual {p0}, Landroidx/fragment/app/Fragment;->getContext()Landroid/content/Context;
+                    move-result-object v0
+                    if-eqz v0, :cond_consumed
+                    invoke-static {v0, p1}, Ldev/custom/gboardpatches/ui/ColorWheelDialog;->show(Landroid/content/Context;Ljava/lang/Object;)V
+
+                    :cond_consumed
+                    const/4 v0, 0x1
+                    return v0
+
+                    :cond_check_super
+                    :try_end_click
+                    .catch Ljava/lang/Throwable; {:try_start_click .. :try_end_click} :catch_click
+
+                    :catch_click
+                    invoke-super {p0, p1}, Lcom/google/android/libraries/inputmethod/preferencewidgets/CommonPreferenceFragment;->aA(Landroidx/preference/Preference;)Z
+                    move-result v0
+                    return v0
+                """.trimIndent()
+
+                gestureFragClass.methods.add(
+                    ImmutableMethod(
+                        gestureFragClass.type,
+                        "aA",
+                        listOf(ImmutableMethodParameter("Landroidx/preference/Preference;", null, null)),
+                        "Z",
+                        AccessFlags.PUBLIC.value,
+                        null,
+                        null,
+                        MutableMethodImplementation(4)
+                    ).toMutable().apply {
+                        addInstructions(0, aAMethodSmali)
+                    }
+                )
+            }
+
+            // 8b. Hook ac() (onResume) to refresh color wheel summary
+            val acMethod = gestureFragClass.methods.firstOrNull { it.name == "ac" && it.parameterTypes.isEmpty() }
+            if (acMethod != null) {
+                val returnVoidIdx = acMethod.implementation?.instructions?.indexOfLast { it.opcode == Opcode.RETURN_VOID } ?: -1
+                if (returnVoidIdx >= 0) {
+                    val updateSummarySmali = """
+                        :try_start_resume
+                        const-string v0, "pref_key_glide_trail_color_wheel"
+                        invoke-virtual {p0, v0}, Lcdr;->d(Ljava/lang/CharSequence;)Landroidx/preference/Preference;
+                        move-result-object v0
+                        if-eqz v0, :cond_resume_done
+                        invoke-virtual {p0}, Landroidx/fragment/app/Fragment;->getContext()Landroid/content/Context;
+                        move-result-object v1
+                        if-eqz v1, :cond_resume_done
+                        invoke-static {v1, v0}, Ldev/custom/gboardpatches/ui/ColorWheelDialog;->updateSummary(Landroid/content/Context;Ljava/lang/Object;)V
+                        :cond_resume_done
+                        :try_end_resume
+                        .catch Ljava/lang/Throwable; {:try_start_resume .. :try_end_resume} :catch_resume
+                        :catch_resume
+                    """.trimIndent()
+                    acMethod.addInstructions(returnVoidIdx, updateSummarySmali)
+                }
+            }
+        }
+
+        // 9. Hook SeekBarPreference to enable live value display and continuous updates
+        val seekBarClass = mutableClassDefByOrNull("Landroidx/preference/SeekBarPreference;")
+        if (seekBarClass != null) {
+            val aMethod = seekBarClass.methods.firstOrNull {
+                it.name == "a" && it.parameterTypes.size == 1 && it.parameterTypes[0] == "Lcdz;"
+            }
+            if (aMethod != null) {
+                val seekBarEnableSmali = """
+                    :try_start_seek
+                    invoke-virtual {p0}, Landroidx/preference/Preference;->getKey()Ljava/lang/String;
+                    move-result-object v0
+                    if-eqz v0, :cond_seek_done
+                    const-string v1, "pref_key_glide_trail_"
+                    invoke-virtual {v0, v1}, Ljava/lang/String;->startsWith(Ljava/lang/String;)Z
+                    move-result v0
+                    if-eqz v0, :cond_seek_done
+                    const/4 v0, 0x1
+                    iput-boolean v0, p0, Landroidx/preference/SeekBarPreference;->e:Z
+                    iput-boolean v0, p0, Landroidx/preference/SeekBarPreference;->f:Z
+                    :cond_seek_done
+                    :try_end_seek
+                    .catch Ljava/lang/Throwable; {:try_start_seek .. :try_end_seek} :catch_seek
+                    :catch_seek
+                """.trimIndent()
+                aMethod.addInstructions(0, seekBarEnableSmali)
+            }
         }
     }
 }

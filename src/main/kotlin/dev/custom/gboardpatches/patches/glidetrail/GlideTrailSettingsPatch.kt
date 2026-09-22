@@ -14,28 +14,13 @@ const val PREF_KEY_GLIDE_TRAIL_CUSTOM_ENABLED = "pref_key_glide_trail_custom_ena
 
 // Color & Rainbow
 const val PREF_KEY_GLIDE_TRAIL_RAINBOW = "pref_key_glide_trail_rainbow"
-const val PREF_KEY_GLIDE_TRAIL_COLOR_CYAN = "pref_key_glide_trail_color_cyan"
-const val PREF_KEY_GLIDE_TRAIL_COLOR_PURPLE = "pref_key_glide_trail_color_purple"
-const val PREF_KEY_GLIDE_TRAIL_COLOR_PINK = "pref_key_glide_trail_color_pink"
-const val PREF_KEY_GLIDE_TRAIL_COLOR_RED = "pref_key_glide_trail_color_red"
-const val PREF_KEY_GLIDE_TRAIL_COLOR_ORANGE = "pref_key_glide_trail_color_orange"
-const val PREF_KEY_GLIDE_TRAIL_COLOR_GREEN = "pref_key_glide_trail_color_green"
-const val PREF_KEY_GLIDE_TRAIL_COLOR_WHITE = "pref_key_glide_trail_color_white"
+const val PREF_KEY_GLIDE_TRAIL_COLOR_WHEEL = "pref_key_glide_trail_color_wheel"
+const val PREF_KEY_GLIDE_TRAIL_CUSTOM_COLOR = "pref_key_glide_trail_custom_color"
 
-// Speed / Fade Duration
-const val PREF_KEY_GLIDE_TRAIL_SPEED_FAST = "pref_key_glide_trail_speed_fast"
-const val PREF_KEY_GLIDE_TRAIL_SPEED_SLOW = "pref_key_glide_trail_speed_slow"
-const val PREF_KEY_GLIDE_TRAIL_SPEED_ULTRASLOW = "pref_key_glide_trail_speed_ultraslow"
-
-// Width / Thickness
-const val PREF_KEY_GLIDE_TRAIL_WIDTH_THIN = "pref_key_glide_trail_width_thin"
-const val PREF_KEY_GLIDE_TRAIL_WIDTH_THICK = "pref_key_glide_trail_width_thick"
-const val PREF_KEY_GLIDE_TRAIL_WIDTH_EXTRATHICK = "pref_key_glide_trail_width_extrathick"
-
-// Length / Tail Decay
-const val PREF_KEY_GLIDE_TRAIL_LENGTH_SHORT = "pref_key_glide_trail_length_short"
-const val PREF_KEY_GLIDE_TRAIL_LENGTH_LONG = "pref_key_glide_trail_length_long"
-const val PREF_KEY_GLIDE_TRAIL_LENGTH_INFINITE = "pref_key_glide_trail_length_infinite"
+// Sliders (Continuous control)
+const val PREF_KEY_GLIDE_TRAIL_SPEED_MS = "pref_key_glide_trail_speed_ms"
+const val PREF_KEY_GLIDE_TRAIL_WIDTH_DP = "pref_key_glide_trail_width_dp"
+const val PREF_KEY_GLIDE_TRAIL_LENGTH_PTS = "pref_key_glide_trail_length_pts"
 
 /**
  * Resource patch that injects comprehensive glide typing trail customization options
@@ -110,7 +95,7 @@ internal fun applyGlideTrailSettingsPatch(document: Document) {
         title: String,
         summary: String,
         defaultValue: String = "false",
-        dependency: String? = dependencyKey
+        dependency: String? = PREF_KEY_GLIDE_TRAIL_CUSTOM_ENABLED
     ): Element {
         return document.createElement("SwitchPreferenceCompat").apply {
             setAttributeNS(ANDROID_NS, "android:persistent", "true")
@@ -124,140 +109,118 @@ internal fun applyGlideTrailSettingsPatch(document: Document) {
         }
     }
 
-    fun createCategory(title: String): Element {
-        return document.createElement("androidx.preference.PreferenceCategory").apply {
+    fun createPreference(
+        key: String,
+        title: String,
+        summary: String,
+        dependency: String? = PREF_KEY_GLIDE_TRAIL_CUSTOM_ENABLED
+    ): Element {
+        return document.createElement("Preference").apply {
+            setAttributeNS(ANDROID_NS, "android:persistent", "false")
             setAttributeNS(ANDROID_NS, "android:title", title)
+            setAttributeNS(ANDROID_NS, "android:summary", summary)
+            setAttributeNS(ANDROID_NS, "android:key", key)
+            if (!dependency.isNullOrEmpty()) {
+                setAttributeNS(ANDROID_NS, "android:dependency", dependency)
+            }
         }
     }
 
-    // Prepare all customization elements
-    val elementsToInsert = mutableListOf<Element>()
+    fun createSeekBar(
+        key: String,
+        title: String,
+        summary: String,
+        defaultValue: String,
+        max: String,
+        dependency: String? = PREF_KEY_GLIDE_TRAIL_CUSTOM_ENABLED
+    ): Element {
+        return document.createElement("androidx.preference.SeekBarPreference").apply {
+            setAttributeNS(ANDROID_NS, "android:persistent", "true")
+            setAttributeNS(ANDROID_NS, "android:title", title)
+            setAttributeNS(ANDROID_NS, "android:summary", summary)
+            setAttributeNS(ANDROID_NS, "android:key", key)
+            setAttributeNS(ANDROID_NS, "android:defaultValue", defaultValue)
+            setAttributeNS(ANDROID_NS, "android:max", max)
+            if (!dependency.isNullOrEmpty()) {
+                setAttributeNS(ANDROID_NS, "android:dependency", dependency)
+            }
+        }
+    }
 
-    // Master Customization Switch
-    elementsToInsert.add(
-        createSwitch(
+    fun createCategory(title: String, dependency: String? = null): Element {
+        return document.createElement("androidx.preference.PreferenceCategory").apply {
+            setAttributeNS(ANDROID_NS, "android:title", title)
+            if (!dependency.isNullOrEmpty()) {
+                setAttributeNS(ANDROID_NS, "android:dependency", dependency)
+            }
+        }
+    }
+
+    // Consolidated Category: Glide Trail Customizations
+    val trailCategory = createCategory("Glide Trail Customizations", dependencyKey).apply {
+        // 1. Master Toggle
+        appendChild(createSwitch(
             key = PREF_KEY_GLIDE_TRAIL_CUSTOM_ENABLED,
             title = "Customize glide trail",
             summary = "Adjust glide typing trail color, speed, width, and length",
-            defaultValue = "true"
-        )
-    )
+            defaultValue = "true",
+            dependency = null
+        ))
 
-    // Category: Trail Effects & Color
-    val colorCategory = createCategory("Trail Effects & Color").apply {
+        // 2. Rainbow RGB Switch
         appendChild(createSwitch(
             key = PREF_KEY_GLIDE_TRAIL_RAINBOW,
             title = "Rainbow RGB effect",
-            summary = "Continuously cycle vibrant rainbow colors across the spectrum while gliding"
+            summary = "Continuously cycle vibrant rainbow colors across the spectrum while gliding",
+            defaultValue = "false",
+            dependency = PREF_KEY_GLIDE_TRAIL_CUSTOM_ENABLED
         ))
-        appendChild(createSwitch(
-            key = PREF_KEY_GLIDE_TRAIL_COLOR_CYAN,
-            title = "Neon Cyan",
-            summary = "Vibrant electric cyan glow (#00E5FF)"
+
+        // 3. Color Wheel Dialog Preference
+        appendChild(createPreference(
+            key = PREF_KEY_GLIDE_TRAIL_COLOR_WHEEL,
+            title = "Trail color wheel",
+            summary = "Tap to choose custom color with color wheel picker",
+            dependency = PREF_KEY_GLIDE_TRAIL_CUSTOM_ENABLED
         ))
-        appendChild(createSwitch(
-            key = PREF_KEY_GLIDE_TRAIL_COLOR_PURPLE,
-            title = "Electric Purple",
-            summary = "Deep ultraviolet purple glow (#D500F9)"
+
+        // 4. Sliders (Duration, Width, Length)
+        appendChild(createSeekBar(
+            key = PREF_KEY_GLIDE_TRAIL_SPEED_MS,
+            title = "Trail fade duration",
+            summary = "Fade time: 200ms (fast) to 4000ms (lingering ribbon)",
+            defaultValue = "1000",
+            max = "4000",
+            dependency = PREF_KEY_GLIDE_TRAIL_CUSTOM_ENABLED
         ))
-        appendChild(createSwitch(
-            key = PREF_KEY_GLIDE_TRAIL_COLOR_PINK,
-            title = "Hot Pink",
-            summary = "Vivid neon pink glow (#FF4081)"
+
+        appendChild(createSeekBar(
+            key = PREF_KEY_GLIDE_TRAIL_WIDTH_DP,
+            title = "Trail width & thickness",
+            summary = "Stroke thickness: 2dp (hairline) to 40dp (thick glow)",
+            defaultValue = "13",
+            max = "40",
+            dependency = PREF_KEY_GLIDE_TRAIL_CUSTOM_ENABLED
         ))
-        appendChild(createSwitch(
-            key = PREF_KEY_GLIDE_TRAIL_COLOR_RED,
-            title = "Vibrant Red",
-            summary = "High-contrast crimson glow (#FF1744)"
-        ))
-        appendChild(createSwitch(
-            key = PREF_KEY_GLIDE_TRAIL_COLOR_ORANGE,
-            title = "Neon Orange",
-            summary = "Fiery amber orange glow (#FF6D00)"
-        ))
-        appendChild(createSwitch(
-            key = PREF_KEY_GLIDE_TRAIL_COLOR_GREEN,
-            title = "Electric Green",
-            summary = "Bright emerald green glow (#00E676)"
-        ))
-        appendChild(createSwitch(
-            key = PREF_KEY_GLIDE_TRAIL_COLOR_WHITE,
-            title = "Pure White",
-            summary = "Clean minimalist white glow (#FFFFFF)"
+
+        appendChild(createSeekBar(
+            key = PREF_KEY_GLIDE_TRAIL_LENGTH_PTS,
+            title = "Trail length & tail retention",
+            summary = "Stroke retention: 5 (compact) to 100 (extended ribbon) points",
+            defaultValue = "20",
+            max = "100",
+            dependency = PREF_KEY_GLIDE_TRAIL_CUSTOM_ENABLED
         ))
     }
-    elementsToInsert.add(colorCategory)
 
-    // Category: Trail Speed & Fade Duration
-    val speedCategory = createCategory("Trail Speed & Fade Duration").apply {
-        appendChild(createSwitch(
-            key = PREF_KEY_GLIDE_TRAIL_SPEED_FAST,
-            title = "Fast fade (400ms)",
-            summary = "Trail fades quickly for a snappy, responsive feel"
-        ))
-        appendChild(createSwitch(
-            key = PREF_KEY_GLIDE_TRAIL_SPEED_SLOW,
-            title = "Slow fade (2200ms)",
-            summary = "Trail lingers longer across the keyboard"
-        ))
-        appendChild(createSwitch(
-            key = PREF_KEY_GLIDE_TRAIL_SPEED_ULTRASLOW,
-            title = "Ultra slow fade (4000ms)",
-            summary = "Extended ribbon mode with long lingering visibility"
-        ))
-    }
-    elementsToInsert.add(speedCategory)
-
-    // Category: Trail Width & Thickness
-    val widthCategory = createCategory("Trail Width & Thickness").apply {
-        appendChild(createSwitch(
-            key = PREF_KEY_GLIDE_TRAIL_WIDTH_THIN,
-            title = "Thin trail (6dp)",
-            summary = "Delicate, precision hairline stroke"
-        ))
-        appendChild(createSwitch(
-            key = PREF_KEY_GLIDE_TRAIL_WIDTH_THICK,
-            title = "Thick trail (22dp)",
-            summary = "Wide, bold stroke for high visibility"
-        ))
-        appendChild(createSwitch(
-            key = PREF_KEY_GLIDE_TRAIL_WIDTH_EXTRATHICK,
-            title = "Extra thick trail (32dp)",
-            summary = "Heavy glowing ribbon effect"
-        ))
-    }
-    elementsToInsert.add(widthCategory)
-
-    // Category: Trail Length & Tail Decay
-    val lengthCategory = createCategory("Trail Length & Tail Decay").apply {
-        appendChild(createSwitch(
-            key = PREF_KEY_GLIDE_TRAIL_LENGTH_SHORT,
-            title = "Short trail tail",
-            summary = "Compact tail following close behind your fingertip"
-        ))
-        appendChild(createSwitch(
-            key = PREF_KEY_GLIDE_TRAIL_LENGTH_LONG,
-            title = "Extended trail length",
-            summary = "Maintains thickness further behind finger before tapering"
-        ))
-        appendChild(createSwitch(
-            key = PREF_KEY_GLIDE_TRAIL_LENGTH_INFINITE,
-            title = "Full stroke length (No taper decay)",
-            summary = "Prevents distance tapering so the full path stays visible until time fade"
-        ))
-    }
-    elementsToInsert.add(lengthCategory)
-
-    // Insert all created elements right after anchorNode
+    // Insert the entire consolidated category right after anchorNode
     val parent = anchorNode?.parentNode ?: root
-    var insertReference = anchorNode?.nextSibling
+    val insertReference = anchorNode?.nextSibling
 
-    for (element in elementsToInsert) {
-        if (insertReference == null) {
-            parent.appendChild(element)
-        } else {
-            parent.insertBefore(element, insertReference)
-        }
+    if (insertReference == null) {
+        parent.appendChild(trailCategory)
+    } else {
+        parent.insertBefore(trailCategory, insertReference)
     }
 }
 

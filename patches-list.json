@@ -1,5 +1,5 @@
 {
-  "version": "1.3.4",
+  "version": "1.4.0",
   "patches": [
     {
       "name": "Backspace Repeat Haptic Feedback",
@@ -29,7 +29,7 @@
     },
     {
       "name": "Glide Trail Customization",
-      "description": "Allows customizing glide typing trail color (including dynamic Rainbow RGB), fade speed, thickness, and length.",
+      "description": "Allows customizing glide typing trail color (interactive HSV Color Wheel & Rainbow RGB), fade speed, thickness, and length.",
       "use": true,
       "dependencies": [],
       "compatiblePackages": {
