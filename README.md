@@ -107,6 +107,6 @@ cd gboard-enc-patches
 ```
 
 Compiled outputs will be located in `dist/`:
-- `dist/patches-1.4.1.mpp`: Release bundle for Morphe Manager.
+- `dist/patches-1.4.2.mpp`: Release bundle for Morphe Manager.
 - `dist/gboard-backspace-haptics.jar`: Standard JAR format.
 

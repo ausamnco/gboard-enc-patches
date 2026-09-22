@@ -173,7 +173,7 @@ val glideTrailCustomizationPatch = bytecodePatch(
                 sub-long v2, v0, v2
                 const-wide/16 v4, 0x1f4 # 500ms
                 cmp-long v2, v2, v4
-                if-gez v2, :cond_return
+                if-ltz v2, :cond_return
                 iput-wide v0, p0, ${overlayClass.type}->morpheLastPrefCheck:J
                 invoke-direct {p0}, ${overlayClass.type}->morpheApplyCustomTrailSettings()V
 
@@ -235,9 +235,9 @@ val glideTrailCustomizationPatch = bytecodePatch(
                 return-void
 
                 :cond_prefs_ok
-                # 1. Master Customization Toggle (default false)
+                # 1. Master Customization Toggle (default true)
                 const-string v2, "pref_key_glide_trail_custom_enabled"
-                const/4 v3, 0x0
+                const/4 v3, 0x1
                 invoke-interface {v1, v2, v3}, Landroid/content/SharedPreferences;->getBoolean(Ljava/lang/String;Z)Z
                 move-result v2
                 if-nez v2, :cond_custom_enabled
@@ -456,6 +456,23 @@ val glideTrailCustomizationPatch = bytecodePatch(
             invoke-direct {p0}, ${overlayClass.type}->morpheOnDrawHook()V
             """.trimIndent()
         )
+
+        // 6b. Hook GestureOverlayView.onSizeChanged to apply custom settings on view resize / display
+        val onSizeChangedMethod = overlayClass.methods.firstOrNull { m ->
+            m.name == "onSizeChanged" && m.parameterTypes.size == 4
+        }
+        if (onSizeChangedMethod != null) {
+            val sizeImpl = onSizeChangedMethod.implementation
+            val returnVoidIndex = sizeImpl?.instructions?.indexOfLast { it.opcode == Opcode.RETURN_VOID } ?: -1
+            if (returnVoidIndex >= 0) {
+                onSizeChangedMethod.addInstructions(
+                    returnVoidIndex,
+                    """
+                    invoke-direct {p0}, ${overlayClass.type}->morpheApplyCustomTrailSettings()V
+                    """.trimIndent()
+                )
+            }
+        }
 
         // 7. Hook mvs.g (Gesture path processor) to use dynamic fade duration
         val mvsField = overlayClass.fields.firstOrNull { field ->

@@ -39,8 +39,8 @@ public class ColorWheelDialog {
     public static void show(final Context context, final Object preference) {
         if (context == null) return;
 
-        final SharedPreferences prefs = getPrefs(context);
-        int initialColor = prefs.getInt(PREF_KEY_CUSTOM_COLOR, 0);
+        final SharedPreferences prefs = GlideTrailPreferences.getPrefs(context);
+        int initialColor = prefs != null ? prefs.getInt(PREF_KEY_CUSTOM_COLOR, 0) : 0;
         if (initialColor == 0) {
             // Default vibrant cyan if no color previously saved
             initialColor = 0xFF00E5FF;
@@ -193,7 +193,7 @@ public class ColorWheelDialog {
                 hsv[1] = wheelView.getSaturation();
                 hsv[2] = valSeekBar.getProgress() / 100.0f;
                 int finalColor = Color.HSVToColor(hsv);
-                saveColor(context, finalColor);
+                GlideTrailPreferences.saveCustomColor(context, finalColor);
                 updatePreferenceSummary(context, preference, finalColor);
             }
         });
@@ -201,7 +201,7 @@ public class ColorWheelDialog {
         builder.setNeutralButton("Reset to Theme", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                saveColor(context, 0); // 0 = Stock Theme Default
+                GlideTrailPreferences.saveCustomColor(context, 0); // 0 = Stock Theme Default
                 updatePreferenceSummary(context, preference, 0);
             }
         });
@@ -214,45 +214,9 @@ public class ColorWheelDialog {
 
     public static void updateSummary(Context context, Object preference) {
         if (context == null || preference == null) return;
-        SharedPreferences prefs = getPrefs(context);
-        int color = prefs.getInt(PREF_KEY_CUSTOM_COLOR, 0);
+        SharedPreferences prefs = GlideTrailPreferences.getPrefs(context);
+        int color = prefs != null ? prefs.getInt(PREF_KEY_CUSTOM_COLOR, 0) : 0;
         updatePreferenceSummary(context, preference, color);
-    }
-
-    private static void saveColor(Context context, int color) {
-        try {
-            SharedPreferences prefs = getPrefs(context);
-            prefs.edit().putInt(PREF_KEY_CUSTOM_COLOR, color).apply();
-
-            Context deContext = getDeviceProtectedContext(context);
-            if (deContext != null) {
-                PreferenceManager.getDefaultSharedPreferences(deContext)
-                    .edit().putInt(PREF_KEY_CUSTOM_COLOR, color).apply();
-            }
-        } catch (Throwable ignored) {}
-    }
-
-    private static SharedPreferences getPrefs(Context context) {
-        try {
-            Context deContext = getDeviceProtectedContext(context);
-            if (deContext != null) {
-                SharedPreferences p = PreferenceManager.getDefaultSharedPreferences(deContext);
-                if (p != null) return p;
-            }
-        } catch (Throwable ignored) {}
-        return PreferenceManager.getDefaultSharedPreferences(context);
-    }
-
-    private static Context getDeviceProtectedContext(Context context) {
-        try {
-            Method isDeMethod = context.getClass().getMethod("isDeviceProtectedStorage");
-            Boolean isDe = (Boolean) isDeMethod.invoke(context);
-            if (isDe != null && !isDe) {
-                Method createDeMethod = context.getClass().getMethod("createDeviceProtectedStorageContext");
-                return (Context) createDeMethod.invoke(context);
-            }
-        } catch (Throwable ignored) {}
-        return null;
     }
 
     private static void updatePreferenceSummary(Context context, Object preference, int color) {

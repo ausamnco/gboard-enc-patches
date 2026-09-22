@@ -12,6 +12,8 @@ import java.lang.reflect.Method;
  */
 public class GlideTrailPreferences {
 
+    public static final String PREF_MASTER_ENABLED = "pref_key_glide_trail_custom_enabled";
+    public static final String PREF_RAINBOW = "pref_key_glide_trail_rainbow";
     public static final String PREF_COLOR_WHEEL = "pref_key_glide_trail_color_wheel";
     public static final String PREF_CUSTOM_COLOR = "pref_key_glide_trail_custom_color";
     public static final String PREF_SPEED_MS = "pref_key_glide_trail_speed_ms";
@@ -181,15 +183,57 @@ public class GlideTrailPreferences {
         return PreferenceManager.getDefaultSharedPreferences(context);
     }
 
-    public static void savePrefInt(Context context, String key, int value) {
-        try {
-            SharedPreferences prefs = getPrefs(context);
-            prefs.edit().putInt(key, value).apply();
+    public static void saveCustomColor(Context context, int color) {
+        if (context == null) return;
+        savePrefInt(context, PREF_CUSTOM_COLOR, color);
+        if (color != 0) {
+            // Setting a custom color disables rainbow mode so the chosen color is visible
+            savePrefBoolean(context, PREF_RAINBOW, false);
+        }
+    }
 
+    public static void savePrefInt(Context context, String key, int value) {
+        if (context == null) return;
+        try {
+            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+            if (prefs != null) {
+                prefs.edit()
+                    .putInt(key, value)
+                    .putBoolean(PREF_MASTER_ENABLED, true)
+                    .commit();
+            }
+        } catch (Throwable ignored) {}
+
+        try {
             Context deContext = getDeviceProtectedContext(context);
-            if (deContext != null) {
-                PreferenceManager.getDefaultSharedPreferences(deContext)
-                    .edit().putInt(key, value).apply();
+            if (deContext != null && deContext != context) {
+                SharedPreferences dePrefs = PreferenceManager.getDefaultSharedPreferences(deContext);
+                if (dePrefs != null) {
+                    dePrefs.edit()
+                        .putInt(key, value)
+                        .putBoolean(PREF_MASTER_ENABLED, true)
+                        .commit();
+                }
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    public static void savePrefBoolean(Context context, String key, boolean value) {
+        if (context == null) return;
+        try {
+            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+            if (prefs != null) {
+                prefs.edit().putBoolean(key, value).commit();
+            }
+        } catch (Throwable ignored) {}
+
+        try {
+            Context deContext = getDeviceProtectedContext(context);
+            if (deContext != null && deContext != context) {
+                SharedPreferences dePrefs = PreferenceManager.getDefaultSharedPreferences(deContext);
+                if (dePrefs != null) {
+                    dePrefs.edit().putBoolean(key, value).commit();
+                }
             }
         } catch (Throwable ignored) {}
     }
