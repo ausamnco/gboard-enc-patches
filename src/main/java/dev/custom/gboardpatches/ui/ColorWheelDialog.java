@@ -257,16 +257,13 @@ public class ColorWheelDialog {
 
     private static void updatePreferenceSummary(Context context, Object preference, int color) {
         if (preference == null) return;
-        try {
-            String summary;
-            if (color != 0) {
-                summary = "Active color: " + formatHex(color) + " (Tap to change)";
-            } else {
-                summary = "Using Gboard stock dynamic theme color (Tap to set custom)";
-            }
-            Method setSummaryMethod = preference.getClass().getMethod("setSummary", CharSequence.class);
-            setSummaryMethod.invoke(preference, summary);
-        } catch (Throwable ignored) {}
+        String summary;
+        if (color != 0) {
+            summary = "Active color: " + formatHex(color) + " (Tap to change)";
+        } else {
+            summary = "Using Gboard stock dynamic theme color (Tap to set custom)";
+        }
+        GlideTrailPreferences.setSummary(preference, summary);
     }
 
     private static String formatHex(int color) {

@@ -126,27 +126,6 @@ internal fun applyGlideTrailSettingsPatch(document: Document) {
         }
     }
 
-    fun createSeekBar(
-        key: String,
-        title: String,
-        summary: String,
-        defaultValue: String,
-        max: String,
-        dependency: String? = PREF_KEY_GLIDE_TRAIL_CUSTOM_ENABLED
-    ): Element {
-        return document.createElement("androidx.preference.SeekBarPreference").apply {
-            setAttributeNS(ANDROID_NS, "android:persistent", "true")
-            setAttributeNS(ANDROID_NS, "android:title", title)
-            setAttributeNS(ANDROID_NS, "android:summary", summary)
-            setAttributeNS(ANDROID_NS, "android:key", key)
-            setAttributeNS(ANDROID_NS, "android:defaultValue", defaultValue)
-            setAttributeNS(ANDROID_NS, "android:max", max)
-            if (!dependency.isNullOrEmpty()) {
-                setAttributeNS(ANDROID_NS, "android:dependency", dependency)
-            }
-        }
-    }
-
     fun createCategory(title: String, dependency: String? = null): Element {
         return document.createElement("androidx.preference.PreferenceCategory").apply {
             setAttributeNS(ANDROID_NS, "android:title", title)
@@ -184,31 +163,25 @@ internal fun applyGlideTrailSettingsPatch(document: Document) {
             dependency = PREF_KEY_GLIDE_TRAIL_CUSTOM_ENABLED
         ))
 
-        // 4. Sliders (Duration, Width, Length)
-        appendChild(createSeekBar(
+        // 4. Sliders (Duration, Width, Length) via interactive Slider Dialog Preferences
+        appendChild(createPreference(
             key = PREF_KEY_GLIDE_TRAIL_SPEED_MS,
             title = "Trail fade duration",
             summary = "Fade time: 200ms (fast) to 4000ms (lingering ribbon)",
-            defaultValue = "1000",
-            max = "4000",
             dependency = PREF_KEY_GLIDE_TRAIL_CUSTOM_ENABLED
         ))
 
-        appendChild(createSeekBar(
+        appendChild(createPreference(
             key = PREF_KEY_GLIDE_TRAIL_WIDTH_DP,
             title = "Trail width & thickness",
             summary = "Stroke thickness: 2dp (hairline) to 40dp (thick glow)",
-            defaultValue = "13",
-            max = "40",
             dependency = PREF_KEY_GLIDE_TRAIL_CUSTOM_ENABLED
         ))
 
-        appendChild(createSeekBar(
+        appendChild(createPreference(
             key = PREF_KEY_GLIDE_TRAIL_LENGTH_PTS,
             title = "Trail length & tail retention",
-            summary = "Stroke retention: 5 (compact) to 100 (extended ribbon) points",
-            defaultValue = "20",
-            max = "100",
+            summary = "Tail retention: 5 (compact) to 100 (extended ribbon) points",
             dependency = PREF_KEY_GLIDE_TRAIL_CUSTOM_ENABLED
         ))
     }

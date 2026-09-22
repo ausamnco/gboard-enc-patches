@@ -486,107 +486,46 @@ val glideTrailCustomizationPatch = bytecodePatch(
             )
         }
 
-        // 8. Hook GesturePreferenceSettingsFragment for Color Wheel dialog
-        val gestureFragClass = mutableClassDefByOrNull("Lcom/google/android/apps/inputmethod/latin/preference/GesturePreferenceSettingsFragment;")
-        if (gestureFragClass != null) {
-            // 8a. Add aA(Preference)Z (onPreferenceTreeClick) to intercept color wheel preference tap
-            val aAMethod = gestureFragClass.methods.firstOrNull { it.name == "aA" && it.parameterTypes.size == 1 }
-            if (aAMethod == null) {
-                val aAMethodSmali = """
+        // 8. Hook PreferenceFragmentCompat (cdr.aA) to handle custom preference clicks safely
+        val cdrClass = mutableClassDefByOrNull("Lcdr;")
+        if (cdrClass != null) {
+            val aAMethod = cdrClass.methods.firstOrNull {
+                it.name == "aA" && it.parameterTypes.size == 1 &&
+                it.parameterTypes[0] == "Landroidx/preference/Preference;"
+            }
+            if (aAMethod != null) {
+                val cdrClickSmali = """
                     :try_start_click
-                    if-eqz p1, :cond_check_super
-                    invoke-virtual {p1}, Landroidx/preference/Preference;->getKey()Ljava/lang/String;
-                    move-result-object v0
-                    const-string v1, "pref_key_glide_trail_color_wheel"
-                    invoke-virtual {v1, v0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+                    invoke-static {p1}, Ldev/custom/gboardpatches/ui/GlideTrailPreferences;->onPreferenceClick(Ljava/lang/Object;)Z
                     move-result v0
-                    if-eqz v0, :cond_check_super
-
-                    invoke-virtual {p0}, Landroidx/fragment/app/Fragment;->getContext()Landroid/content/Context;
-                    move-result-object v0
-                    if-eqz v0, :cond_consumed
-                    invoke-static {v0, p1}, Ldev/custom/gboardpatches/ui/ColorWheelDialog;->show(Landroid/content/Context;Ljava/lang/Object;)V
-
-                    :cond_consumed
+                    if-eqz v0, :cond_click_orig
                     const/4 v0, 0x1
                     return v0
-
-                    :cond_check_super
+                    :cond_click_orig
                     :try_end_click
                     .catch Ljava/lang/Throwable; {:try_start_click .. :try_end_click} :catch_click
-
                     :catch_click
-                    invoke-super {p0, p1}, Lcom/google/android/libraries/inputmethod/preferencewidgets/CommonPreferenceFragment;->aA(Landroidx/preference/Preference;)Z
-                    move-result v0
-                    return v0
                 """.trimIndent()
-
-                gestureFragClass.methods.add(
-                    ImmutableMethod(
-                        gestureFragClass.type,
-                        "aA",
-                        listOf(ImmutableMethodParameter("Landroidx/preference/Preference;", null, null)),
-                        "Z",
-                        AccessFlags.PUBLIC.value,
-                        null,
-                        null,
-                        MutableMethodImplementation(4)
-                    ).toMutable().apply {
-                        addInstructions(0, aAMethodSmali)
-                    }
-                )
-            }
-
-            // 8b. Hook ac() (onResume) to refresh color wheel summary
-            val acMethod = gestureFragClass.methods.firstOrNull { it.name == "ac" && it.parameterTypes.isEmpty() }
-            if (acMethod != null) {
-                val returnVoidIdx = acMethod.implementation?.instructions?.indexOfLast { it.opcode == Opcode.RETURN_VOID } ?: -1
-                if (returnVoidIdx >= 0) {
-                    val updateSummarySmali = """
-                        :try_start_resume
-                        const-string v0, "pref_key_glide_trail_color_wheel"
-                        invoke-virtual {p0, v0}, Lcdr;->d(Ljava/lang/CharSequence;)Landroidx/preference/Preference;
-                        move-result-object v0
-                        if-eqz v0, :cond_resume_done
-                        invoke-virtual {p0}, Landroidx/fragment/app/Fragment;->getContext()Landroid/content/Context;
-                        move-result-object v1
-                        if-eqz v1, :cond_resume_done
-                        invoke-static {v1, v0}, Ldev/custom/gboardpatches/ui/ColorWheelDialog;->updateSummary(Landroid/content/Context;Ljava/lang/Object;)V
-                        :cond_resume_done
-                        :try_end_resume
-                        .catch Ljava/lang/Throwable; {:try_start_resume .. :try_end_resume} :catch_resume
-                        :catch_resume
-                    """.trimIndent()
-                    acMethod.addInstructions(returnVoidIdx, updateSummarySmali)
-                }
+                aAMethod.addInstructions(0, cdrClickSmali)
             }
         }
 
-        // 9. Hook SeekBarPreference to enable live value display and continuous updates
-        val seekBarClass = mutableClassDefByOrNull("Landroidx/preference/SeekBarPreference;")
-        if (seekBarClass != null) {
-            val aMethod = seekBarClass.methods.firstOrNull {
-                it.name == "a" && it.parameterTypes.size == 1 && it.parameterTypes[0] == "Lcdz;"
+        // 9. Hook CommonPreferenceFragment base (doe.aB) to initialize active preference summaries
+        val doeClass = mutableClassDefByOrNull("Ldoe;")
+        if (doeClass != null) {
+            val aBMethod = doeClass.methods.firstOrNull {
+                it.name == "aB" && it.parameterTypes.size == 1 &&
+                it.parameterTypes[0] == "Landroidx/preference/PreferenceGroup;"
             }
-            if (aMethod != null) {
-                val seekBarEnableSmali = """
-                    :try_start_seek
-                    invoke-virtual {p0}, Landroidx/preference/Preference;->getKey()Ljava/lang/String;
-                    move-result-object v0
-                    if-eqz v0, :cond_seek_done
-                    const-string v1, "pref_key_glide_trail_"
-                    invoke-virtual {v0, v1}, Ljava/lang/String;->startsWith(Ljava/lang/String;)Z
-                    move-result v0
-                    if-eqz v0, :cond_seek_done
-                    const/4 v0, 0x1
-                    iput-boolean v0, p0, Landroidx/preference/SeekBarPreference;->e:Z
-                    iput-boolean v0, p0, Landroidx/preference/SeekBarPreference;->f:Z
-                    :cond_seek_done
-                    :try_end_seek
-                    .catch Ljava/lang/Throwable; {:try_start_seek .. :try_end_seek} :catch_seek
-                    :catch_seek
+            if (aBMethod != null) {
+                val doeSummarySmali = """
+                    :try_start_summaries
+                    invoke-static {p1}, Ldev/custom/gboardpatches/ui/GlideTrailPreferences;->initSummaries(Ljava/lang/Object;)V
+                    :try_end_summaries
+                    .catch Ljava/lang/Throwable; {:try_start_summaries .. :try_end_summaries} :catch_summaries
+                    :catch_summaries
                 """.trimIndent()
-                aMethod.addInstructions(0, seekBarEnableSmali)
+                aBMethod.addInstructions(0, doeSummarySmali)
             }
         }
     }
